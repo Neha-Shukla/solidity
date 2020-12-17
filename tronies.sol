@@ -64,7 +64,7 @@ contract MyTron{
     event Withdrawn(uint256 amount, uint256 prev, uint256 curr, uint256 diff);
     event binaryEvent(uint256 amount, uint256 prev, uint256 curr, uint256 diff);
 
- constructor(address payable marketingAddr, address payable projectAddr, address payable developmentAddr, address payable _owner) public {
+    constructor(address payable marketingAddr, address payable projectAddr, address payable developmentAddr, address payable _owner) public {
 		require(!isContract(marketingAddr) && !isContract(projectAddr) && !isContract(developmentAddr));
 		marketingAddress = marketingAddr;
 		projectAddress = projectAddr;
@@ -156,7 +156,7 @@ contract MyTron{
         return 0;
     }
     
-    function setLevel(address _user) public{
+    function setLevel(address _user) internal{
          uint256 vol=getDownlineBalance(_user);
    
         if(vol>=MILLION.mul(500)){
@@ -241,7 +241,7 @@ contract MyTron{
             }
 	}
 	
-	function getExtraProfit(address _user) public view returns(uint256){
+	function getExtraProfit(address _user) internal view returns(uint256){
 	    uint256 percent = 0;
 	    if(getUserTotalDeposits(_user)>=TRX.mul(100000)){
 	        percent = (getUserTotalDeposits(_user).div(TRX.mul(100000))).mul(5);
@@ -261,6 +261,7 @@ contract MyTron{
         for(uint256 i=1;i<=10;i++){
             if(_upline==address(0))
             break;
+            
             if(i==1){
                 if(users[_upline].level>=i){
                     users[_upline].levelIncome = users[_upline].levelIncome.add(_amount.mul(4).div(100));
@@ -322,7 +323,7 @@ contract MyTron{
 	function withdraw() public{
 	    User storage user = users[msg.sender];
 
-
+        require(isActive(msg.sender),"User is not an active user");
 		uint256 totalAmount;
 		uint256 dividends;
 
@@ -494,7 +495,7 @@ contract MyTron{
     
     function getUserDailyBalanceLeftForWithdrawl(address _user) public view returns(uint256){
         User storage user = users[_user];
-        	uint256 totalAmount;
+        uint256 totalAmount;
 		uint256 dividends;
 
     // amount for all deposits which can be maximum 200%
