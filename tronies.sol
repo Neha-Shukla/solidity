@@ -386,47 +386,6 @@ contract MyTron{
 	    users[msg.sender].totalWithdrawn = users[msg.sender].totalWithdrawn.add(totalAmount);
 	}
 	
-//     function getUserDividends(address userAddress) public view returns (uint256) {
-// 		User storage user = users[userAddress];
-
-// 		uint256 userPercentRate = getUserPercentRate(userAddress);
-
-// 		uint256 totalDividends;
-// 		uint256 dividends;
-
-// 		for (uint256 i = 0; i < user.deposits.length; i++) {
-
-// 			if (user.deposits[i].withdrawn < user.deposits[i].amount.mul(5).div(2)) {
-
-// 				if (user.deposits[i].start > user.checkpoint) {
-
-// 					dividends = (user.deposits[i].amount.mul(userPercentRate).div(PERCENTS_DIVIDER))
-// 						.mul(block.timestamp.sub(user.deposits[i].start))
-// 						.div(TIME_STEP);
-
-// 				} else {
-
-// 					dividends = (user.deposits[i].amount.mul(userPercentRate).div(PERCENTS_DIVIDER))
-// 						.mul(block.timestamp.sub(user.checkpoint))
-// 						.div(TIME_STEP);
-
-// 				}
-
-// 				if (user.deposits[i].withdrawn.add(dividends) > user.deposits[i].amount.mul(5).div(2)) {
-// 					dividends = (user.deposits[i].amount.mul(5).div(2)).sub(user.deposits[i].withdrawn);
-// 				}
-
-// 				totalDividends = totalDividends.add(dividends);
-
-// 				/// no update of withdrawn because that is view function
-
-// 			}
-
-// 		}
-
-// 		return totalDividends;
-// 	}
-
 	function getUserCheckpoint(address userAddress) public view returns(uint256) {
 		return users[userAddress].checkpoint;
 	}
@@ -493,7 +452,10 @@ contract MyTron{
         }
     }
     
-    function getUserDailyBalanceLeftForWithdrawl(address _user) public view returns(uint256){
+    
+        
+    // getters
+    function getUserDailyProfit(address _user) public view returns(uint256){
         User storage user = users[_user];
         uint256 totalAmount;
 		uint256 dividends;
@@ -527,26 +489,104 @@ contract MyTron{
 		return totalAmount;
     }
     
-    function getDailyProfitEarnedSoFar(address _user) public view returns(uint256){
+    function getBasicProfit(address _user) public view returns(uint256){
+         User storage user = users[_user];
+        uint256 totalAmount;
+		uint256 dividends;
+
+    // amount for all deposits which can be maximum 200%
+		for (uint256 i = 0; i < user.deposits.length; i++) {
+
+			if (user.deposits[i].withdrawn < user.deposits[i].amount.mul(2)) {
+
+				if (user.deposits[i].start > user.checkpoint) {
+
+					dividends = (user.deposits[i].amount.mul(120))
+						.mul(block.timestamp.sub(user.deposits[i].start))
+						.div(TIME_STAMP.mul(10000));
+
+				} else {
+
+				dividends = (user.deposits[i].amount.mul(120))
+						.mul(block.timestamp.sub(user.checkpoint))
+						.div(TIME_STAMP.mul(10000));
+				}
+
+				if (user.deposits[i].withdrawn.add(dividends) > user.deposits[i].amount.mul(2)) {
+					dividends = (user.deposits[i].amount.mul(2)).sub(user.deposits[i].withdrawn);
+				}
+                
+             	totalAmount = totalAmount.add(dividends);
+
+			}
+		}
+		return totalAmount;
+    }
+    
+    function getPersonalDepositProfit(address _user) public view returns(uint256){
+         User storage user = users[_user];
+        uint256 totalAmount;
+		uint256 dividends;
+
+    // amount for all deposits which can be maximum 200%
+		for (uint256 i = 0; i < user.deposits.length; i++) {
+
+			if (user.deposits[i].withdrawn < user.deposits[i].amount.mul(2)) {
+
+				if (user.deposits[i].start > user.checkpoint) {
+
+					dividends = (user.deposits[i].amount.mul(getExtraProfit(msg.sender)))
+						.mul(block.timestamp.sub(user.deposits[i].start))
+						.div(TIME_STAMP.mul(10000));
+
+				} else {
+
+				dividends = (user.deposits[i].amount.mul(getExtraProfit(msg.sender)))
+						.mul(block.timestamp.sub(user.checkpoint))
+						.div(TIME_STAMP.mul(10000));
+				}
+
+				if (user.deposits[i].withdrawn.add(dividends) > user.deposits[i].amount.mul(2)) {
+					dividends = (user.deposits[i].amount.mul(2)).sub(user.deposits[i].withdrawn);
+				}
+                
+             	totalAmount = totalAmount.add(dividends);
+
+			}
+		}
+		return totalAmount;
+    }
+    
+    
+    function totalEarnedFromDailyProfit(address _user) public view returns(uint256){
         return users[_user].dailyProfitEarned;
     }
     
-    function userInfo(address _user) public view returns( 
-        uint256 referrals,
-	    uint256 total_structure,
-	    uint256 level,
-	    uint256 _totalWithdrawn,
-	    uint256 referralCommission){
-	        return (
-	            users[_user].referrals,
-	            users[_user].total_structure,
-	            users[_user].level,
-	            users[_user].totalWithdrawn,
-	            users[_user].levelIncome
-	            );
-	    }
-	    
-	function getLevelWiseCount(address _user,uint256 _level) public view returns(uint256){
+    function getTotalReferralCommissionEarned(address _user)public view returns(uint256){
+        users[_user].levelIncome;
+    }
+    
+    function getReferralsLevelsUnlocked(address _user) public view returns(uint256){
+        users[_user].level;
+    }
+    
+    function getTotalTeamDepositVolume(address _user) public view returns(uint256){
+        users[_user].totalDownlineBalance;
+    }
+    
+    function getBinaryCommissionEarnedSoFar(address _user) public view returns(uint256){
+        users[_user].binaryCommissionEarned;
+    }
+    
+    function getReferrals(address _user) public view returns(uint256){
+        users[_user].referrals;
+    }
+    
+    function getTotalTeamMembers(address _user) public view returns(uint256){
+        users[_user].total_structure;
+    }
+    
+    function getLevelWiseCount(address _user,uint256 _level) public view returns(uint256){
 	    if(_level==1){
 	        return usersLevels[_user].level1;
 	    }
@@ -579,7 +619,18 @@ contract MyTron{
 	    }
 	}
 	
-
+	function getTotalVolume() public view returns(uint256){
+	    return totalUsers;
+	}
+	
+	function getTotalDepositsAmount()public view returns(uint256){
+	    return totalInvested;
+	}
+	
+	function getTotalWithdrawn()public view returns(uint256){
+	    return totalWithdrawn;
+	}
+    
 }
 
 library SafeMath {
