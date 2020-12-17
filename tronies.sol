@@ -3,17 +3,16 @@ pragma solidity ^0.5.11;
 contract MyTron{
     using SafeMath for uint256;
     
-    uint256 constant MIN_AMOUNT =1000000000;
+    uint256 constant MIN_AMOUNT =1000;
     uint256 constant BASE_PERCENT = 120;
-    uint256 constant public MILLION = 1000000;
-    uint256 constant public TIME_STAMP = 1 days;
-    uint256 constant public TRX = 1000000;
+    uint256 constant public MILLION = 1000;
+    uint256 constant public TIME_STAMP = 30;
+    uint256 constant public TRX = 1;
     
     uint256 public totalUsers;
 	uint256 public totalInvested;
 	uint256 public totalWithdrawn;
 	uint256 public totalDeposits;
-	uint256 public sponsorWallet;
 	uint256 public maxBalance;
 	uint256 public adminWallet;
 	
@@ -40,6 +39,8 @@ contract MyTron{
 	    bool isExist;
 	    uint256 totalWithdrawn;
 	    uint256 levelIncome;
+	    uint256 binaryCommissionEarned;
+	    uint256 dailyProfitEarned;
 	}
 	
 	struct UserLevels{
@@ -60,7 +61,8 @@ contract MyTron{
 	
 	event Newbie(address indexed user);
 	event NewDeposit(address indexed user, uint256 amount);
-    event Withdrawn(address indexed user, uint256 amount);
+    event Withdrawn(uint256 amount, uint256 prev, uint256 curr, uint256 diff);
+    event binaryEvent(uint256 amount, uint256 prev, uint256 curr, uint256 diff);
 
  constructor(address payable marketingAddr, address payable projectAddr, address payable developmentAddr, address payable _owner) public {
 		require(!isContract(marketingAddr) && !isContract(projectAddr) && !isContract(developmentAddr));
@@ -78,6 +80,7 @@ contract MyTron{
 	    
 	    if (user.deposits.length == 0) {
     		user.checkpoint = block.timestamp;
+    		user.weeklyLastWithdraw = block.timestamp;
     		user.level = 3;
     		user.isExist=true;
     		totalUsers = totalUsers.add(1);
@@ -97,7 +100,7 @@ contract MyTron{
     	totalInvested = totalInvested.add(msg.value);
     	totalDeposits = totalDeposits.add(1);
     	
-    	setDownlineVolume();
+    	setDownlineVolume(msg.value);
     	
     	//give 70% to admin
         adminWallet = adminWallet.add(msg.value.mul(7).div(10));
@@ -122,13 +125,13 @@ contract MyTron{
 	    return _referrer;
     }
     
-    function setDownlineVolume() internal{
+    function setDownlineVolume(uint256 _amount) internal{
         address upline = users[msg.sender].referrer;
         for(uint256 i=0;i<10;i++){
             if(upline==address(0)){
                 break;
             }
-            users[upline].totalDownlineBalance = users[upline].totalDownlineBalance.add(1);
+            users[upline].totalDownlineBalance = users[upline].totalDownlineBalance.add(_amount);
             setLevel(msg.sender);
             upline = users[upline].referrer;
         }
@@ -136,17 +139,19 @@ contract MyTron{
     
     function getBinaryBalance() public view returns(uint256){
         uint256 vol=getDownlineBalance(msg.sender);
-        if(vol>=MILLION.mul(10)){
-            return (vol.mul(5).div(1000));
+        if(vol>=MILLION.mul(500)){
+            return vol.mul(2).div(100);
         }
+         if(vol>=MILLION.mul(100)){
+            return vol.mul(15).div(1000);
+        }
+        
         if(vol>=MILLION.mul(50)){
             return vol.mul(1).div(100);
         }
-        if(vol>=MILLION.mul(100)){
-            return vol.mul(15).div(1000);
-        }
-        if(vol>=MILLION.mul(500)){
-            return vol.mul(2).div(100);
+       
+        if(vol>=MILLION.mul(10)){
+            return (vol.mul(5).div(1000));
         }
         return 0;
     }
@@ -310,7 +315,7 @@ contract MyTron{
         }
     }
     
-    function getDownlineBalance(address _user) internal view returns(uint256){
+    function getDownlineBalance(address _user) public view returns(uint256){
 	    return users[_user].totalDownlineBalance;
 	}
 	
@@ -342,15 +347,26 @@ contract MyTron{
 				if (user.deposits[i].withdrawn.add(dividends) > user.deposits[i].amount.mul(2)) {
 					dividends = (user.deposits[i].amount.mul(2)).sub(user.deposits[i].withdrawn);
 				}
-
+                
+                emit Withdrawn(dividends,user.checkpoint,block.timestamp,block.timestamp.sub(user.checkpoint));
 				user.deposits[i].withdrawn = user.deposits[i].withdrawn.add(dividends); /// changing of storage data
 				totalAmount = totalAmount.add(dividends);
 
 			}
+			
+			user.dailyProfitEarned = user.dailyProfitEarned.add(totalAmount);
 		}
+		if(totalAmount>0){
+		    user.checkpoint = block.timestamp;
+		}
+		
 		uint256 binaryBalance;
 		if(getBinaryBalance()>0 && block.timestamp.sub(users[msg.sender].weeklyLastWithdraw)>TIME_STAMP.mul(7)){
 		   binaryBalance = getBinaryBalance().mul(block.timestamp.sub(users[msg.sender].weeklyLastWithdraw)).div(TIME_STAMP.mul(7));
+	        emit binaryEvent(binaryBalance,user.weeklyLastWithdraw,block.timestamp,block.timestamp.sub(user.weeklyLastWithdraw));
+	        user.weeklyLastWithdraw = block.timestamp;
+		    user.binaryCommissionEarned = user.binaryCommissionEarned.add(binaryBalance);
+		    
 		}
         
         totalAmount = totalAmount.add(binaryBalance);
@@ -361,7 +377,7 @@ contract MyTron{
 			totalAmount = contractBalance;
 		}
 
-		user.checkpoint = block.timestamp;
+	
 
 		msg.sender.transfer(totalAmount);
 
@@ -417,8 +433,7 @@ contract MyTron{
 	function getUserReferrer(address userAddress) public view returns(address) {
 		return users[userAddress].referrer;
 	}
-
-
+	
 	function isActive(address userAddress) public view returns (bool) {
 		User storage user = users[userAddress];
 
@@ -468,6 +483,102 @@ contract MyTron{
         assembly { size := extcodesize(addr) }
         return size > 0;
     }
+    
+    //external
+    function getBinaryBalanceLeftForWithdrawl(address _user) public view returns(uint256){
+        uint256 binaryBalance = 0;
+        if(isActive(_user)){
+         binaryBalance = getBinaryBalance().mul(block.timestamp.sub(users[msg.sender].weeklyLastWithdraw)).div(TIME_STAMP.mul(7));
+        }
+    }
+    
+    function getUserDailyBalanceLeftForWithdrawl(address _user) public view returns(uint256){
+        User storage user = users[_user];
+        	uint256 totalAmount;
+		uint256 dividends;
+
+    // amount for all deposits which can be maximum 200%
+		for (uint256 i = 0; i < user.deposits.length; i++) {
+
+			if (user.deposits[i].withdrawn < user.deposits[i].amount.mul(2)) {
+
+				if (user.deposits[i].start > user.checkpoint) {
+
+					dividends = (user.deposits[i].amount.mul(totalDailyPercent(msg.sender)))
+						.mul(block.timestamp.sub(user.deposits[i].start))
+						.div(TIME_STAMP.mul(10000));
+
+				} else {
+
+				dividends = (user.deposits[i].amount.mul(totalDailyPercent(msg.sender)))
+						.mul(block.timestamp.sub(user.checkpoint))
+						.div(TIME_STAMP.mul(10000));
+				}
+
+				if (user.deposits[i].withdrawn.add(dividends) > user.deposits[i].amount.mul(2)) {
+					dividends = (user.deposits[i].amount.mul(2)).sub(user.deposits[i].withdrawn);
+				}
+                
+             	totalAmount = totalAmount.add(dividends);
+
+			}
+		}
+		return totalAmount;
+    }
+    
+    function getDailyProfitEarnedSoFar(address _user) public view returns(uint256){
+        return users[_user].dailyProfitEarned;
+    }
+    
+    function userInfo(address _user) public view returns( 
+        uint256 referrals,
+	    uint256 total_structure,
+	    uint256 level,
+	    uint256 _totalWithdrawn,
+	    uint256 referralCommission){
+	        return (
+	            users[_user].referrals,
+	            users[_user].total_structure,
+	            users[_user].level,
+	            users[_user].totalWithdrawn,
+	            users[_user].levelIncome
+	            );
+	    }
+	    
+	function getLevelWiseCount(address _user,uint256 _level) public view returns(uint256){
+	    if(_level==1){
+	        return usersLevels[_user].level1;
+	    }
+	     if(_level==2){
+	        return usersLevels[_user].level2;
+	    }
+	     if(_level==3){
+	        return usersLevels[_user].level3;
+	    }
+	     if(_level==4){
+	        return usersLevels[_user].level4;
+	    }
+	     if(_level==5){
+	        return usersLevels[_user].level5;
+	    }
+	     if(_level==6){
+	        return usersLevels[_user].level6;
+	    }
+	     if(_level==7){
+	        return usersLevels[_user].level7;
+	    }
+	     if(_level==8){
+	        return usersLevels[_user].level8;
+	    }
+	     if(_level==9){
+	        return usersLevels[_user].level9;
+	    }
+	     if(_level==10){
+	        return usersLevels[_user].level10;
+	    }
+	}
+	
+
 }
 
 library SafeMath {
