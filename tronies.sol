@@ -6,9 +6,9 @@ contract MyTron{
     uint256 constant MIN_AMOUNT =100000000;             // 100 TRX
     uint256 constant BASE_PERCENT = 120;                // 1.2% base profit
     uint256 constant internal MILLION = 1000;
-    uint256 constant internal TIME_STAMP = 2;      // 1 day
+    uint256 constant internal TIME_STAMP = 1;      // 1 day
     uint256 constant internal TRX = 1000000;
-    uint256 constant internal THOUS = 1;
+    uint256 constant internal THOUS = 1 days;
     
     uint256 public totalUsers;
 	uint256 public totalInvested;
@@ -376,10 +376,11 @@ contract MyTron{
 	function withdraw() public{
 	    User storage user = users[msg.sender];
 
+        require(isActive(msg.sender),"User is not an active user");
 		uint256 totalAmount;
 		uint256 dividends;
 
-        // amount for all deposits which can be maximum 200%
+    // amount for all deposits which can be maximum 200%
 		for (uint256 i = 0; i < user.deposits.length; i++) {
 
 			if (user.deposits[i].withdrawn < user.deposits[i].amount.mul(2)) {
@@ -392,7 +393,7 @@ contract MyTron{
 
 				} else {
 
-				dividends = (user.deposits[i].amount.mul(totalDailyPercent(msg.sender)))
+				    dividends = (user.deposits[i].amount.mul(totalDailyPercent(msg.sender)))
 						.mul(block.timestamp.sub(user.checkpoint))
 						.div(TIME_STAMP.mul(10000));
 				}
@@ -413,31 +414,38 @@ contract MyTron{
 		if(totalAmount>0){
 		    user.checkpoint = block.timestamp;
 		}
+        uint256 contractBalance = address(this).balance;
+        if (contractBalance < totalAmount) {
+			totalAmount = contractBalance;
+		}
 		user.dailyProfitEarned = user.dailyProfitEarned.add(totalAmount);
 			
 		uint256 binaryBalance;
 		if(getBinaryBalance(msg.sender)>0 && block.timestamp.sub(users[msg.sender].weeklyLastWithdraw)>TIME_STAMP.mul(7)){
-		   binaryBalance = getBinaryBalance(msg.sender).mul(block.timestamp.sub(users[msg.sender].weeklyLastWithdraw)).div(TIME_STAMP.mul(7));
+		   binaryBalance = getBinaryBalance(msg.sender).mul(block.timestamp.sub(users[msg.sender].weeklyLastWithdraw).div(TIME_STAMP.mul(7)));
 	        emit binaryEvent(binaryBalance,user.weeklyLastWithdraw,block.timestamp,block.timestamp.sub(user.weeklyLastWithdraw));
 	        user.weeklyLastWithdraw = block.timestamp;
+            if(totalAmount+binaryBalance<address(this).balance)
 		    user.binaryCommissionEarned = user.binaryCommissionEarned.add(binaryBalance);
-		    
 		}
         
         totalAmount = totalAmount.add(binaryBalance);
 		require(totalAmount > 0, "User has no dividends");
 
-		uint256 contractBalance = address(this).balance;
+		
 		if (contractBalance < totalAmount) {
 			totalAmount = contractBalance;
 		}
+
+	
+
 		msg.sender.transfer(totalAmount);
 
 		totalWithdrawn = totalWithdrawn.add(totalAmount);
 	    users[msg.sender].totalWithdrawn_ = users[msg.sender].totalWithdrawn_.add(totalAmount);
 	}
 	
-	// function to add fund to contract by admin
+	// function to add fund to contract
 	function deposit() external payable{
 	    adminWallet = adminWallet.sub(msg.value);
 	}
@@ -519,6 +527,7 @@ contract MyTron{
         if(isActive(_user)){
          binaryBalance = getBinaryBalance(_user).mul(block.timestamp.sub(users[msg.sender].weeklyLastWithdraw)).div(TIME_STAMP.mul(7));
         }
+        return binaryBalance;
     }
         
     // function to check if user is active ie. it has withdrawn 200% of all investment
