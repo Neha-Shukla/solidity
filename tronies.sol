@@ -1,6 +1,6 @@
 pragma solidity >=0.5.4;
 
-contract MyTron{
+contract Trontiply{
     using SafeMath for uint256;
     
     uint256 constant MIN_AMOUNT =100000000;             // 100 TRX
@@ -361,11 +361,11 @@ contract MyTron{
 	function getExtraProfit(address _user) public view returns(uint256){
 	    uint256 percent = 0;
 	    if(getUserTotalDeposits(_user)>=TRX.mul(100).mul(THOUS)){
-	        percent = (getUserTotalDeposits(_user).div(TRX.mul(100).mul(THOUS))).mul(5);
+	        percent = (getUserTotalDeposits(_user).div(TRX.mul(100).mul(THOUS))).mul(2);
 	    }
 	   
-	    if(percent>=50)
-	    percent = 50;
+	    if(percent>=20)
+	    percent = 20;
 	    
 	    return percent;
 	}
@@ -428,7 +428,7 @@ contract MyTron{
 	        emit binaryEvent(binaryBalance,user.weeklyLastWithdraw,block.timestamp,block.timestamp.sub(user.weeklyLastWithdraw));
 	        
             require(contractBalance >= totalAmount+binaryBalance, "sorry insufficient contract balane");
-		    user.weeklyLastWithdraw = user.weeklyLastWithdraw+TIME_STAMP.mul(7);
+		    user.weeklyLastWithdraw = user.weeklyLastWithdraw+block.timestamp.sub(users[msg.sender].weeklyLastWithdraw).div(TIME_STAMP.mul(7));
             user.binaryCommissionEarned = user.binaryCommissionEarned.add(binaryBalance);
 		}
         
