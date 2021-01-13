@@ -1,18 +1,25 @@
 /**
 *
-* TronHero
+* TronPlanetX
 *
-* https://tronhero.io
-* (only for tronhero.io Community)
-* Crowdfunding And Investment Program: 25% Daily ROI for 8 Days.
+* https://tronPlanetX.com
+* (only for tronPlanetX.com Community)
+* Crowdfunding And Investment Program: 2% Daily ROI for 105 Days.
 * Referral Program
 * 1st Level = 10%
 * 2nd Level = 5%
 * 3rd Level = 3%
+* 4th Level = 3%
+* 5th Level = 2%
+* 6th Level = 2%
+* 7th Level = 2%
+* 8th Level = 1%
+* 9th Level = 1%
+* 10th Level = 1%
 *
 **/
 
-pragma solidity 0.5.10;
+pragma solidity >=0.5.0;
 
 library SafeMath {
     function mul(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -52,16 +59,22 @@ library Objects {
 
     struct Investor {
         address addr;
-		uint256 checkpoint;
+	    uint256 checkpoint;
         uint256 referrerEarnings;
         uint256 availableReferrerEarnings;
-        uint256 reinvestWallet;
         uint256 referrer;
         uint256 planCount;
         mapping(uint256 => Investment) plans;
         uint256 level1RefCount;
         uint256 level2RefCount;
         uint256 level3RefCount;
+        uint256 level4RefCount;
+        uint256 level5RefCount;
+        uint256 level6RefCount;
+        uint256 level7RefCount;
+        uint256 level8RefCount;
+        // uint256 level9RefCount;
+        // uint256 level10RefCount;
     }
 }
 
@@ -77,27 +90,34 @@ contract Ownable {
     }
 }
 
-contract TronHero is Ownable {
+contract TronPlanetX is Ownable {
     using SafeMath for uint256;
     uint256 public constant DEVELOPER_RATE = 40;            // 4% Team, Operation & Development
     uint256 public constant MARKETING_RATE = 40;            // 4% Marketing
     uint256 public constant REFERENCE_RATE = 180;           // 18% Total Refer Income
     uint256 public constant REFERENCE_LEVEL1_RATE = 100;    // 10% Level 1 Income
-    uint256 public constant REFERENCE_LEVEL2_RATE = 60;     // 6% Level 2 Income
-    uint256 public constant REFERENCE_LEVEL3_RATE = 40;     // 4% Level 3 Income
-    uint256 public constant REFERENCE_LEVEL4_RATE = 20;     // 2% Level 4 Income
+    uint256 public constant REFERENCE_LEVEL2_RATE = 50;     // 5% Level 2 Income
+    uint256 public constant REFERENCE_LEVEL3_RATE = 30;     // 3% Level 3 Income
+    uint256 public constant REFERENCE_LEVEL4_RATE = 30;     // 3% Level 4 Income
+    uint256 public constant REFERENCE_LEVEL5_RATE = 20;     // 2% Level 5 Income
+    uint256 public constant REFERENCE_LEVEL6_RATE = 20;     // 2% Level 6 Income
+    uint256 public constant REFERENCE_LEVEL7_RATE = 20;     // 2% Level 7 Income
+    uint256 public constant REFERENCE_LEVEL8_RATE = 10;     // 1% Level 8 Income
+    uint256 public constant REFERENCE_LEVEL9_RATE = 10;     // 1% Level 9 Income
+    uint256 public constant REFERENCE_LEVEL10_RATE = 10;     // 1% Level 10 Income
     
-    uint256 public constant MINIMUM = 100e6;                // Minimum investment : 100 TRX
+    uint256 public constant MINIMUM = 200e6;                // Minimum investment : 200 TRX
     uint256 public constant REFERRER_CODE = 1000;           // Root ID : 1000
-    uint256 public constant PLAN_INTEREST = 200;            // 20% Daily Roi
-    uint256 public constant PLAN_TERM = 12 days;             // 12 Days
-    uint256 public constant CONTRACT_LIMIT = 800;           // 20% Unlocked for Withdrawal Daily
+    uint256 public constant PLAN_INTEREST = 20;            // 2% Daily Roi
+    uint256 public constant PLAN_TERM = 105 days;             // 105 Days
 
     uint256 public  contract_balance;
     uint256 private contract_checkpoint;
     uint256 public  latestReferrerCode;
     uint256 public  totalInvestments_;
-    uint256 public  totalReinvestments_;
+
+	uint256 public developerWallet_;
+	uint256 public marketingWallet_;
 
     address payable private developerAccount_;
     address payable private marketingAccount_;
@@ -109,9 +129,9 @@ contract TronHero is Ownable {
     event onReinvest(address investor, uint256 amount);
     event onWithdraw(address investor, uint256 amount);
 
-    constructor() public {
-        developerAccount_ = msg.sender;
-        marketingAccount_ = msg.sender;
+    constructor(address payable _developerAccount, address payable _marketingAccount) public {
+        developerAccount_ = _developerAccount;
+        marketingAccount_ = _marketingAccount;
         _init();
     }
 
@@ -149,7 +169,7 @@ contract TronHero is Ownable {
         return address2UID[_addr];
     }
 
-    function getInvestorInfoByUID(uint256 _uid) public view returns (uint256,uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256[] memory) {
+    function getInvestorInfoByUID(uint256 _uid) public view returns ( uint256, uint256, uint256, uint256, uint256, uint256[] memory) {
         if (msg.sender != owner) {
             require(address2UID[msg.sender] == _uid, "only owner or self can check the investor info.");
         }
@@ -171,17 +191,27 @@ contract TronHero is Ownable {
         (
         investor.referrerEarnings,
         investor.availableReferrerEarnings,
-        investor.reinvestWallet,
         investor.referrer,
-        investor.level1RefCount,
-        investor.level2RefCount,
-        investor.level3RefCount,
         investor.planCount,
         investor.checkpoint,
         newDividends
         );
     }
-
+    
+    function getLevelRefCount(uint256 _uid) public view returns(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256){
+       Objects.Investor storage investor = uid2Investor[_uid];
+        return (
+            investor.level1RefCount,
+            investor.level2RefCount,
+            investor.level3RefCount,
+            investor.level4RefCount,
+            investor.level5RefCount,
+            investor.level6RefCount,
+            investor.level7RefCount,
+            investor.level8RefCount
+        );    
+    }
+    
     function getInvestmentPlanByUID(uint256 _uid) public view returns (uint256[] memory, uint256[] memory, uint256[] memory, bool[] memory) {
         if (msg.sender != owner) {
             require(address2UID[msg.sender] == _uid, "only owner or self can check the investment plan info.");
@@ -233,16 +263,33 @@ contract TronHero is Ownable {
         uid2Investor[latestReferrerCode].referrer = _referrerCode;
         uid2Investor[latestReferrerCode].planCount = 0;
         if (_referrerCode >= REFERRER_CODE) {
-            uint256 _ref1 = _referrerCode;
-            uint256 _ref2 = uid2Investor[_ref1].referrer;
-            uint256 _ref3 = uid2Investor[_ref2].referrer;
-            uid2Investor[_ref1].level1RefCount = uid2Investor[_ref1].level1RefCount.add(1);
-            if (_ref2 >= REFERRER_CODE) {
-                uid2Investor[_ref2].level2RefCount = uid2Investor[_ref2].level2RefCount.add(1);
+            uint256 _ref = _referrerCode;
+            for(uint256 i=0;i<3;i++){
+                if (_ref >= REFERRER_CODE) {
+                    if(i==0)
+                    uid2Investor[_ref].level1RefCount = uid2Investor[_ref].level1RefCount.add(1);
+                    if(i==1)
+                    uid2Investor[_ref].level2RefCount = uid2Investor[_ref].level2RefCount.add(1);
+                    if(i==2)
+                    uid2Investor[_ref].level3RefCount = uid2Investor[_ref].level3RefCount.add(1);
+                    if(i==3)
+                    uid2Investor[_ref].level4RefCount = uid2Investor[_ref].level4RefCount.add(1);
+                    if(i==4)
+                    uid2Investor[_ref].level5RefCount = uid2Investor[_ref].level5RefCount.add(1);
+                    if(i==5)
+                    uid2Investor[_ref].level6RefCount = uid2Investor[_ref].level6RefCount.add(1);
+                    if(i==6)
+                    uid2Investor[_ref].level7RefCount = uid2Investor[_ref].level7RefCount.add(1);
+                    if(i==7)
+                    uid2Investor[_ref].level8RefCount = uid2Investor[_ref].level8RefCount.add(1);
+                    // if(i==8)
+                    // uid2Investor[_ref].level9RefCount = uid2Investor[_ref].level9RefCount.add(1);
+                    // if(i==9)
+                    // uid2Investor[_ref].level10RefCount = uid2Investor[_ref].level10RefCount.add(1);
+                }
+                _ref = uid2Investor[_ref].referrer;
             }
-            if (_ref3 >= REFERRER_CODE) {
-                uid2Investor[_ref3].level3RefCount = uid2Investor[_ref3].level3RefCount.add(1);
-            }
+        
         }
         return (latestReferrerCode);
     }
@@ -272,33 +319,10 @@ contract TronHero is Ownable {
 
         totalInvestments_ = totalInvestments_.add(_amount);
 
-        uint256 developerPercentage = (_amount.mul(DEVELOPER_RATE)).div(1000);
-        developerAccount_.transfer(developerPercentage);
-        uint256 marketingPercentage = (_amount.mul(MARKETING_RATE)).div(1000);
-        marketingAccount_.transfer(marketingPercentage);
         return true;
     }
 
-    function _reinvestAll(address _addr, uint256 _amount) private returns (bool) {
-
-        require(_amount >= MINIMUM, "Less than the minimum amount of deposit requirement");
-        uint256 uid = address2UID[_addr];
-
-        uint256 planCount = uid2Investor[uid].planCount;
-        Objects.Investor storage investor = uid2Investor[uid];
-        investor.plans[planCount].investmentDate = block.timestamp;
-        investor.plans[planCount].lastWithdrawalDate = block.timestamp;
-        investor.plans[planCount].investment = _amount;
-        investor.plans[planCount].currentDividends = 0;
-        investor.plans[planCount].isExpired = false;
-
-        investor.planCount = investor.planCount.add(1);
-
-        totalReinvestments_ = totalReinvestments_.add(_amount);
-
-        return true;
-    }
-
+   
     function invest(uint256 _referrerCode) public payable {
         if (_invest(msg.sender, _referrerCode, msg.value)) {
             emit onInvest(msg.sender, msg.value);
@@ -306,76 +330,11 @@ contract TronHero is Ownable {
     }
 
     function withdraw() public {
-        uint256 currPLAN_TERM = PLAN_TERM;
-        uint256 currPLAN_INTEREST = PLAN_INTEREST;
+
         uint256 uid = address2UID[msg.sender];
         require(uid != 0, "Can not withdraw because no any investments");
 
-        require(withdrawAllowance(), "Withdraw are not allowed between 0am to 4am UTC");
-
-        //only once a day
-		require(block.timestamp > uid2Investor[uid].checkpoint + 1 days , "Only once a day");
-        uid2Investor[uid].checkpoint = block.timestamp;
-
-        uint256 withdrawalAmount = 0;
-        for (uint256 i = 0; i < uid2Investor[uid].planCount; i++) {
-            if (uid2Investor[uid].plans[i].isExpired) {
-                continue;
-            }
-            if(uid2Investor[uid].plans[i].investment>=25000e6 && uid2Investor[uid].plans[i].investment<=50000e6){
-                currPLAN_TERM = 11 days;
-            }
-            if(uid2Investor[uid].plans[i].investment>50000e6){
-                currPLAN_INTEREST = 250;
-            }
-            bool isExpired = false;
-            uint256 withdrawalDate = block.timestamp;
-            uint256 endTime = uid2Investor[uid].plans[i].investmentDate.add(currPLAN_TERM);
-            if (withdrawalDate >= endTime) {
-                withdrawalDate = endTime;
-                isExpired = true;
-            }
-
-            uint256 amount = _calculateDividends(uid2Investor[uid].plans[i].investment , currPLAN_INTEREST , withdrawalDate , uid2Investor[uid].plans[i].lastWithdrawalDate);
-
-            withdrawalAmount += amount;
-
-            uid2Investor[uid].plans[i].lastWithdrawalDate = withdrawalDate;
-            uid2Investor[uid].plans[i].isExpired = isExpired;
-            uid2Investor[uid].plans[i].currentDividends += amount;
-        }
-
-
-        if(withdrawalAmount>0){
-            uint256 currentBalance = getBalance();
-            if(withdrawalAmount >= currentBalance){
-                withdrawalAmount=currentBalance;
-            }
-            require( currentBalance.sub(withdrawalAmount)  >= contract_balance.mul(CONTRACT_LIMIT).div(1000), "80% contract balance limit");
-            uint256 reinvestAmount = withdrawalAmount.div(2);
-            if(withdrawalAmount > 90e9 ){
-                reinvestAmount = withdrawalAmount.sub(45e9);
-            }
-            //reinvest
-            uid2Investor[uid].reinvestWallet = uid2Investor[uid].reinvestWallet.add(reinvestAmount);
-            //withdraw
-            msg.sender.transfer(withdrawalAmount.sub(reinvestAmount));
-            uint256 developerPercentage = (withdrawalAmount.mul(DEVELOPER_RATE)).div(1000);
-            developerAccount_.transfer(developerPercentage);
-            uint256 marketingPercentage = (withdrawalAmount.mul(MARKETING_RATE)).div(1000);
-            marketingAccount_.transfer(marketingPercentage);
-        }
-
-        emit onWithdraw(msg.sender, withdrawalAmount);
-    }
-
-    function reinvest() public {
-
-        uint256 uid = address2UID[msg.sender];
-        require(uid != 0, "Can not reinvest because no any investments");
-
-        //only once a day
-		require(block.timestamp > uid2Investor[uid].checkpoint + 1 days , "Only once a day");
+        
         uid2Investor[uid].checkpoint = block.timestamp;
 
         uint256 withdrawalAmount = 0;
@@ -401,24 +360,22 @@ contract TronHero is Ownable {
             uid2Investor[uid].plans[i].currentDividends += amount;
         }
 
-        if (uid2Investor[uid].availableReferrerEarnings>0) {
-            withdrawalAmount += uid2Investor[uid].availableReferrerEarnings;
-            uid2Investor[uid].referrerEarnings = uid2Investor[uid].availableReferrerEarnings.add(uid2Investor[uid].referrerEarnings);
-            uid2Investor[uid].availableReferrerEarnings = 0;
-        }
-
-        if (uid2Investor[uid].reinvestWallet>0) {
-            withdrawalAmount += uid2Investor[uid].reinvestWallet;
-            uid2Investor[uid].reinvestWallet = 0;
-        }
-
 
         if(withdrawalAmount>0){
-            //reinvest
-            _reinvestAll(msg.sender,withdrawalAmount);
+            uint256 currentBalance = getBalance();
+            if(withdrawalAmount >= currentBalance){
+                withdrawalAmount=currentBalance;
+            }
+            
+             //withdraw
+            msg.sender.transfer(withdrawalAmount);
+            uint256 developerPercentage = (withdrawalAmount.mul(DEVELOPER_RATE)).div(1000);
+			developerWallet_ = developerWallet_.add(developerPercentage);
+            uint256 marketingPercentage = (withdrawalAmount.mul(MARKETING_RATE)).div(1000);
+			marketingWallet_ = marketingWallet_.add(marketingPercentage);
         }
 
-        emit onReinvest(msg.sender, withdrawalAmount);
+        emit onWithdraw(msg.sender, withdrawalAmount);
     }
 
     function _calculateDividends(uint256 _amount, uint256 _dailyInterestRate, uint256 _now, uint256 _start) private pure returns (uint256) {
@@ -429,58 +386,74 @@ contract TronHero is Ownable {
 
         uint256 _allReferrerAmount = (_investment.mul(REFERENCE_RATE)).div(1000);
         if (_referrerCode != 0) {
-            uint256 _ref1 = _referrerCode;
-            uint256 _ref2 = uid2Investor[_ref1].referrer;
-            uint256 _ref3 = uid2Investor[_ref2].referrer;
-            uint256 _ref4 = uid2Investor[_ref3].referrer;
+            uint256 _ref = _referrerCode;
             uint256 _refAmount = 0;
-
-            if (_ref1 != 0) {
-                _refAmount = (_investment.mul(REFERENCE_LEVEL1_RATE)).div(1000);
-                _allReferrerAmount = _allReferrerAmount.sub(_refAmount);
-                uid2Investor[_ref1].availableReferrerEarnings = _refAmount.add(uid2Investor[_ref1].availableReferrerEarnings);
-            }
-
-            if (_ref2 != 0) {
-                _refAmount = (_investment.mul(REFERENCE_LEVEL2_RATE)).div(1000);
-                _allReferrerAmount = _allReferrerAmount.sub(_refAmount);
-                uid2Investor[_ref2].availableReferrerEarnings = _refAmount.add(uid2Investor[_ref2].availableReferrerEarnings);
-            }
-
-            if (_ref3 != 0) {
-                _refAmount = (_investment.mul(REFERENCE_LEVEL3_RATE)).div(1000);
-                _allReferrerAmount = _allReferrerAmount.sub(_refAmount);
-                uid2Investor[_ref3].availableReferrerEarnings = _refAmount.add(uid2Investor[_ref3].availableReferrerEarnings);
-            }
             
-            if (_ref4 != 0) {
-                _refAmount = (_investment.mul(REFERENCE_LEVEL4_RATE)).div(1000);
-                _allReferrerAmount = _allReferrerAmount.sub(_refAmount);
-                uid2Investor[_ref4].availableReferrerEarnings = _refAmount.add(uid2Investor[_ref4].availableReferrerEarnings);
+            for(uint256 i=0;i<10;i++){
+                if (_ref != 0)
+                {
+                    if(i==0){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL1_RATE)).div(1000);
+                    }
+                    if(i==1){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL2_RATE)).div(1000);
+                    }
+                    if(i==2){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL3_RATE)).div(1000);
+                    }
+                    if(i==3){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL4_RATE)).div(1000);
+                    }
+                    if(i==4){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL5_RATE)).div(1000);
+                    }
+                    if(i==5){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL6_RATE)).div(1000);
+                    }
+                    if(i==6){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL7_RATE)).div(1000);
+                    }
+                    if(i==7){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL8_RATE)).div(1000);
+                    }
+                    if(i==8){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL9_RATE)).div(1000);
+                    }
+                    if(i==9){
+                        _refAmount = (_investment.mul(REFERENCE_LEVEL10_RATE)).div(1000);
+                    }
+                     _allReferrerAmount = _allReferrerAmount.sub(_refAmount);
+                    uid2Investor[_ref].availableReferrerEarnings = _refAmount.add(uid2Investor[_ref].availableReferrerEarnings);
+                }
+                _ref = uid2Investor[_ref].referrer;
             }
+           
+
         }
 
     }
 
-    function updateBalance() public {
-        //only once a day
-		require(block.timestamp > contract_checkpoint + 1 days , "Only once a day");
-        contract_checkpoint = block.timestamp;
-        contract_balance = getBalance();
+   
+  
+    function withdrawDevelopmentFund() public {
+        require(msg.sender==developerAccount_, "you are not the developer");
+        msg.sender.transfer(developerWallet_);
+		developerWallet_ = 0;
     }
 
-    function getHour() public view returns (uint8){
-        return uint8((block.timestamp / 60 / 60) % 24);
+	function withdrawMarketingFund() public {
+        require(msg.sender==marketingAccount_, "you are not eligible");
+        msg.sender.transfer(marketingWallet_);
+		marketingWallet_ = 0;
     }
-
-    function withdrawAllowance() public view returns(bool){
-        uint8 hour = getHour();
-        if(hour >= 0 && hour <= 3){
-            return false;
+    
+    function getTotalDeposits() public view returns(uint256 _amount){
+        uint256 amount;
+        Objects.Investor storage investor = uid2Investor[address2UID[msg.sender]];
+        for(uint256 i=0;i<uid2Investor[address2UID[msg.sender]].planCount;i++){
+            if(investor.plans[i].isExpired==false)
+            amount = amount.add(investor.plans[i].investment);
         }
-        else{
-            return true;
-        }
+        return amount;
     }
-
 }
