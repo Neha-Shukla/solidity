@@ -6,16 +6,15 @@
 * (only for tronPlanetX.com Community)
 * Crowdfunding And Investment Program: 2% Daily ROI for 105 Days.
 * Referral Program
+* 
 * 1st Level = 10%
 * 2nd Level = 5%
 * 3rd Level = 3%
 * 4th Level = 3%
-* 5th Level = 2%
+* 5th Level = 3%
 * 6th Level = 2%
 * 7th Level = 2%
-* 8th Level = 1%
-* 9th Level = 1%
-* 10th Level = 1%
+* 8th Level = 2%
 *
 **/
 
@@ -73,9 +72,9 @@ library Objects {
         uint256 level6RefCount;
         uint256 level7RefCount;
         uint256 level8RefCount;
-        // uint256 level9RefCount;
-        // uint256 level10RefCount;
     }
+    
+    
 }
 
 contract Ownable {
@@ -95,23 +94,22 @@ contract TronPlanetX is Ownable {
     uint256 public constant DEVELOPER_RATE = 40;            // 4% Team, Operation & Development
     uint256 public constant MARKETING_RATE = 40;            // 4% Marketing
     uint256 public constant REFERENCE_RATE = 180;           // 18% Total Refer Income
+    
     uint256 public constant REFERENCE_LEVEL1_RATE = 100;    // 10% Level 1 Income
     uint256 public constant REFERENCE_LEVEL2_RATE = 50;     // 5% Level 2 Income
     uint256 public constant REFERENCE_LEVEL3_RATE = 30;     // 3% Level 3 Income
     uint256 public constant REFERENCE_LEVEL4_RATE = 30;     // 3% Level 4 Income
-    uint256 public constant REFERENCE_LEVEL5_RATE = 20;     // 2% Level 5 Income
+    uint256 public constant REFERENCE_LEVEL5_RATE = 30;     // 3% Level 5 Income
     uint256 public constant REFERENCE_LEVEL6_RATE = 20;     // 2% Level 6 Income
     uint256 public constant REFERENCE_LEVEL7_RATE = 20;     // 2% Level 7 Income
-    uint256 public constant REFERENCE_LEVEL8_RATE = 10;     // 1% Level 8 Income
-    uint256 public constant REFERENCE_LEVEL9_RATE = 10;     // 1% Level 9 Income
-    uint256 public constant REFERENCE_LEVEL10_RATE = 10;     // 1% Level 10 Income
+    uint256 public constant REFERENCE_LEVEL8_RATE = 20;     // 2% Level 8 Income
     
     uint256 public constant MINIMUM = 200e6;                // Minimum investment : 200 TRX
     uint256 public constant REFERRER_CODE = 1000;           // Root ID : 1000
     uint256 public constant PLAN_INTEREST = 20;            // 2% Daily Roi
     uint256 public constant PLAN_TERM = 105 days;             // 105 Days
 
-    uint256 public  contract_balance;
+   
     uint256 private contract_checkpoint;
     uint256 public  latestReferrerCode;
     uint256 public  totalInvestments_;
@@ -121,12 +119,25 @@ contract TronPlanetX is Ownable {
 
     address payable private developerAccount_;
     address payable private marketingAccount_;
+    
+    struct LevelIncome{
+        uint256 level1;
+        uint256 level2;
+        uint256 level3;
+        uint256 level4;
+        uint256 level5;
+        uint256 level6;
+        uint256 level7;
+        uint256 level8;
+        
+    }
 
     mapping(address => uint256) public address2UID;
+    mapping(uint256 => LevelIncome) public levelIncomes;
     mapping(uint256 => Objects.Investor) public uid2Investor;
+    mapping(uint256 => uint256) public amountWithdrawn;
 
     event onInvest(address investor, uint256 amount);
-    event onReinvest(address investor, uint256 amount);
     event onWithdraw(address investor, uint256 amount);
 
     constructor(address payable _developerAccount, address payable _marketingAccount) public {
@@ -282,10 +293,7 @@ contract TronPlanetX is Ownable {
                     uid2Investor[_ref].level7RefCount = uid2Investor[_ref].level7RefCount.add(1);
                     if(i==7)
                     uid2Investor[_ref].level8RefCount = uid2Investor[_ref].level8RefCount.add(1);
-                    // if(i==8)
-                    // uid2Investor[_ref].level9RefCount = uid2Investor[_ref].level9RefCount.add(1);
-                    // if(i==9)
-                    // uid2Investor[_ref].level10RefCount = uid2Investor[_ref].level10RefCount.add(1);
+                   
                 }
                 _ref = uid2Investor[_ref].referrer;
             }
@@ -321,7 +329,6 @@ contract TronPlanetX is Ownable {
 
         return true;
     }
-
    
     function invest(uint256 _referrerCode) public payable {
         if (_invest(msg.sender, _referrerCode, msg.value)) {
@@ -368,7 +375,9 @@ contract TronPlanetX is Ownable {
             }
             
              //withdraw
-            msg.sender.transfer(withdrawalAmount);
+            msg.sender.transfer(withdrawalAmount+uid2Investor[address2UID[msg.sender]].availableReferrerEarnings);
+            uid2Investor[address2UID[msg.sender]].availableReferrerEarnings = 0;
+            amountWithdrawn[address2UID[msg.sender]] = amountWithdrawn[address2UID[msg.sender]].add(withdrawalAmount);
             uint256 developerPercentage = (withdrawalAmount.mul(DEVELOPER_RATE)).div(1000);
 			developerWallet_ = developerWallet_.add(developerPercentage);
             uint256 marketingPercentage = (withdrawalAmount.mul(MARKETING_RATE)).div(1000);
@@ -394,34 +403,37 @@ contract TronPlanetX is Ownable {
                 {
                     if(i==0){
                         _refAmount = (_investment.mul(REFERENCE_LEVEL1_RATE)).div(1000);
+                        levelIncomes[_ref].level1 = levelIncomes[_ref].level1.add(_refAmount);
                     }
                     if(i==1){
                         _refAmount = (_investment.mul(REFERENCE_LEVEL2_RATE)).div(1000);
+                        levelIncomes[_ref].level2 = levelIncomes[_ref].level2.add(_refAmount);
                     }
                     if(i==2){
                         _refAmount = (_investment.mul(REFERENCE_LEVEL3_RATE)).div(1000);
+                        levelIncomes[_ref].level3 = levelIncomes[_ref].level3.add(_refAmount);
                     }
                     if(i==3){
                         _refAmount = (_investment.mul(REFERENCE_LEVEL4_RATE)).div(1000);
+                        levelIncomes[_ref].level4 = levelIncomes[_ref].level4.add(_refAmount);
                     }
                     if(i==4){
                         _refAmount = (_investment.mul(REFERENCE_LEVEL5_RATE)).div(1000);
+                        levelIncomes[_ref].level5 = levelIncomes[_ref].level5.add(_refAmount);
                     }
                     if(i==5){
                         _refAmount = (_investment.mul(REFERENCE_LEVEL6_RATE)).div(1000);
+                        levelIncomes[_ref].level6 = levelIncomes[_ref].level6.add(_refAmount);
                     }
                     if(i==6){
                         _refAmount = (_investment.mul(REFERENCE_LEVEL7_RATE)).div(1000);
+                        levelIncomes[_ref].level7 = levelIncomes[_ref].level7.add(_refAmount);
                     }
                     if(i==7){
                         _refAmount = (_investment.mul(REFERENCE_LEVEL8_RATE)).div(1000);
+                        levelIncomes[_ref].level8 = levelIncomes[_ref].level8.add(_refAmount);
                     }
-                    if(i==8){
-                        _refAmount = (_investment.mul(REFERENCE_LEVEL9_RATE)).div(1000);
-                    }
-                    if(i==9){
-                        _refAmount = (_investment.mul(REFERENCE_LEVEL10_RATE)).div(1000);
-                    }
+                   
                      _allReferrerAmount = _allReferrerAmount.sub(_refAmount);
                     uid2Investor[_ref].availableReferrerEarnings = _refAmount.add(uid2Investor[_ref].availableReferrerEarnings);
                 }
@@ -433,8 +445,6 @@ contract TronPlanetX is Ownable {
 
     }
 
-   
-  
     function withdrawDevelopmentFund() public {
         require(msg.sender==developerAccount_, "you are not the developer");
         msg.sender.transfer(developerWallet_);
@@ -455,5 +465,36 @@ contract TronPlanetX is Ownable {
             amount = amount.add(investor.plans[i].investment);
         }
         return amount;
+    }
+    
+    function getLevelwiseIncome(uint256 _id,uint256 _level) public view returns(uint256){
+                     if(_level==1){
+                       return levelIncomes[_id].level1;
+                    }
+                    if(_level==2){
+                        return levelIncomes[_id].level2;
+                    }
+                    if(_level==3){
+                        return levelIncomes[_id].level3;
+                    }
+                    if(_level==4){
+                       return levelIncomes[_id].level4;
+                    }
+                    if(_level==5){
+                         return levelIncomes[_id].level5;
+                    }
+                    if(_level==6){
+                        return levelIncomes[_id].level6;
+                    }
+                    if(_level==7){
+                       return levelIncomes[_id].level7;
+                    }
+                    if(_level==8){
+                         return levelIncomes[_id].level8;
+                    }
+    }
+    
+    function getAmountWithdrawn(uint256 _id) public view returns(uint256){
+        return amountWithdrawn[_id];
     }
 }
