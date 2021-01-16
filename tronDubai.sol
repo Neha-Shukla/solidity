@@ -3,10 +3,11 @@ pragma solidity ^0.6.0;
 contract TronTradeDubai{
     using SafeMath for uint256;
     
-    uint256 constant public MIN_INVESTMENT = 500000000;  //500 TRX
-    uint256 constant public MIN_WITHDRAW = 20000000;     //20 TRX
-    uint256 constant public MAX_WITHDRAWN_PERCENT = 365; //365 TRX 
+    uint256 constant public MIN_INVESTMENT = 500000000;  // 500 TRX
+    uint256 constant public MIN_WITHDRAW = 20000000;     // 20 TRX
+    uint256 constant public MAX_WITHDRAWN_PERCENT = 365; // 365% 
     uint256 constant public DIVIDER = 100;
+    uint256 constant public DAILY_ROI = 1;               // 1%
     
     uint256 public totalUsers;
     uint256 public totalInvested;
@@ -16,6 +17,10 @@ contract TronTradeDubai{
     uint256 adminWallet;
     uint256 portfolioWallet;
     uint256 reInvestWallet;
+    
+    address adminAcc;
+    address portfolioAcc;
+    address reInvestAcc;
     
     struct Deposit{
         uint256 amount;
@@ -42,8 +47,11 @@ contract TronTradeDubai{
     event NewDeposit(address _user,uint256 _amount);
     event ReInvest(address _user,uint256 _amount);
     
-    constructor() public{
+    constructor(address _adminAcc,address _portfolioAcc,address _reInvestAcc) public{
         owner=msg.sender;
+        adminAcc = _adminAcc;
+        portfolioAcc = _portfolioAcc;
+        reInvestAcc = _reInvestAcc;
     }
     
     function Invest(address _ref) public payable{
@@ -69,6 +77,16 @@ contract TronTradeDubai{
         totalInvested = totalInvested.add(msg.value);
         
         users[msg.sender].deposits.push(Deposit(msg.value,block.timestamp,0,0,true));
+        
+        // give amount to production
+        adminWallet = adminWallet.add(msg.value.mul(10).div(DIVIDER));
+        portfolioWallet = portfolioWallet.add(msg.value.mul(5).div(DIVIDER));
+        reInvestWallet = reInvestWallet.add(msg.value.mul(30).div(DIVIDER));
+        
+        address(uint256(adminAcc)).transfer(msg.value.mul(10).div(DIVIDER));
+        address(uint256(portfolioAcc)).transfer(msg.value.mul(5).div(DIVIDER));
+        address(uint256(reInvestAcc)).transfer(msg.value.mul(30).div(DIVIDER));
+        
         DistributeLevelFund(_ref,msg.value);
     }
     
@@ -95,20 +113,34 @@ contract TronTradeDubai{
                 if(users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome.
                 add(percent.mul(_amount).div(DIVIDER)).
                 add(users[_ref].deposits[getTotalDepositsCount(_ref)-1].withdrawn)
-                <= users[_ref].deposits[getTotalDepositsCount(_ref)-1].amount.mul(365).div(DIVIDER))
+                <= (users[_ref].deposits[getTotalDepositsCount(_ref)-1].amount.mul(MAX_WITHDRAWN_PERCENT).div(DIVIDER)))
                 {
                     users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome = users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome.
                     add(percent.mul(_amount).div(DIVIDER));
                     users[_ref].levelIncomeEarned = users[_ref].levelIncomeEarned.add(percent.mul(_amount).div(DIVIDER));
                 }
+                else{
+                    users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome = (users[_ref].deposits[getTotalDepositsCount(_ref)-1].amount.mul(MAX_WITHDRAWN_PERCENT).div(DIVIDER)).sub(users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome.
+                    add(percent.mul(_amount).div(DIVIDER)));
+                    users[_ref].levelIncomeEarned = (users[_ref].deposits[getTotalDepositsCount(_ref)-1].amount.mul(MAX_WITHDRAWN_PERCENT).div(DIVIDER)).sub(users[_ref].levelIncomeEarned.add(percent.mul(_amount).div(DIVIDER)));
+            
+                }
             }
-                
+            
             }
         _ref = users[_ref].referrer;
     }
     
     function WithdrawFunds() public{
+        User storage user = users[msg.sender];
+        uint256 totalAmount;
+        uint256 dividend;
         
+        for(uint256 i=0;i<user.deposits.length;i++){
+            if(user.deposits[i].withdrawn.add(user.deposits[i].refIncome)<MAX_WITHDRAWN_PERCENT.mul(user.deposits[i].amount)){
+                
+            }
+        }
     }
     
     
