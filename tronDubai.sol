@@ -27,6 +27,7 @@ contract TronTradeDubai{
         uint256 start;
         uint256 withdrawn;
         uint256 refIncome;
+        uint256 max;
         bool active;
     }
     
@@ -37,6 +38,7 @@ contract TronTradeDubai{
         uint256 referrals;
         address referrer;
         uint256 totalWithdrawn;
+        uint256 holdReferralBonus;
         bool isExist;
     }
     
@@ -46,7 +48,8 @@ contract TronTradeDubai{
     event NewUserRegisterEvent(address _user,address _ref,uint256 _amount);
     event NewDeposit(address _user,uint256 _amount);
     event ReInvest(address _user,uint256 _amount);
-    
+    event Dividends(address _user,uint256 _amount,uint256 _start,uint256 _end,uint256 _diff);
+    event Withdraw(address _user,uint256 _amount);
     constructor(address _adminAcc,address _portfolioAcc,address _reInvestAcc) public{
         owner=msg.sender;
         adminAcc = _adminAcc;
@@ -69,6 +72,7 @@ contract TronTradeDubai{
             users[msg.sender].referrer = _ref;
             users[_ref].referrals = users[_ref].referrals.add(1);
             usersList[totalUsers] = msg.sender;
+            users[msg.sender].isExist = true;
             emit NewUserRegisterEvent(msg.sender,_ref,msg.value);
         }
         else{
@@ -76,7 +80,8 @@ contract TronTradeDubai{
         }
         totalInvested = totalInvested.add(msg.value);
         
-        users[msg.sender].deposits.push(Deposit(msg.value,block.timestamp,0,0,true));
+        users[msg.sender].deposits.push(Deposit(msg.value,block.timestamp,0,0,
+        MAX_WITHDRAWN_PERCENT.mul(msg.value).div(DIVIDER),true));
         
         // give amount to production
         adminWallet = adminWallet.add(msg.value.mul(10).div(DIVIDER));
@@ -109,40 +114,89 @@ contract TronTradeDubai{
                 percent = 1;
             }
             if(ifEligibleToGetLevelIncome(_ref,i+1)){
-              
-                if(users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome.
-                add(percent.mul(_amount).div(DIVIDER)).
-                add(users[_ref].deposits[getTotalDepositsCount(_ref)-1].withdrawn)
-                <= (users[_ref].deposits[getTotalDepositsCount(_ref)-1].amount.mul(MAX_WITHDRAWN_PERCENT).div(DIVIDER)))
-                {
-                    users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome = users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome.
-                    add(percent.mul(_amount).div(DIVIDER));
-                    users[_ref].levelIncomeEarned = users[_ref].levelIncomeEarned.add(percent.mul(_amount).div(DIVIDER));
-                }
-                else{
-                    users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome = (users[_ref].deposits[getTotalDepositsCount(_ref)-1].amount.mul(MAX_WITHDRAWN_PERCENT).div(DIVIDER)).sub(users[_ref].deposits[getTotalDepositsCount(_ref)-1].refIncome.
-                    add(percent.mul(_amount).div(DIVIDER)));
-                    users[_ref].levelIncomeEarned = (users[_ref].deposits[getTotalDepositsCount(_ref)-1].amount.mul(MAX_WITHDRAWN_PERCENT).div(DIVIDER)).sub(users[_ref].levelIncomeEarned.add(percent.mul(_amount).div(DIVIDER)));
-            
-                }
+              users[_ref].holdReferralBonus = users[_ref].holdReferralBonus.
+              add(_amount.mul(percent).div(DIVIDER));
             }
-            
+            _ref = users[_ref].referrer;
             }
-        _ref = users[_ref].referrer;
+        
     }
     
     function WithdrawFunds() public{
-        User storage user = users[msg.sender];
         uint256 totalAmount;
-        uint256 dividend;
+        uint256 dividends;
+        address _user = msg.sender;
         
-        for(uint256 i=0;i<user.deposits.length;i++){
-            if(user.deposits[i].withdrawn.add(user.deposits[i].refIncome)<MAX_WITHDRAWN_PERCENT.mul(user.deposits[i].amount)){
-                
+        for(uint256 i=0;i<users[_user].deposits.length;i++){
+            uint256 ROI = DAILY_ROI.mul(users[_user].deposits[i].amount).
+            mul(block.timestamp.sub(users[_user].deposits[i].start)).div(DIVIDER);
+            uint256 maxWithdrawn = users[_user].deposits[i].max;
+            uint256 alreadyWithdrawn = users[_user].deposits[i].withdrawn;
+            uint256 holdReferralBonus = users[_user].holdReferralBonus;
+            
+            if(alreadyWithdrawn != maxWithdrawn){
+                if(holdReferralBonus.add(alreadyWithdrawn)>=maxWithdrawn){
+                    dividends = maxWithdrawn.sub(alreadyWithdrawn);
+                    holdReferralBonus = holdReferralBonus.sub(maxWithdrawn.sub(alreadyWithdrawn));
+                    users[_user].deposits[i].active = false;
+                }
+                else{
+                    
+                    if(holdReferralBonus.add(alreadyWithdrawn).add(ROI)>=maxWithdrawn){
+                        dividends = maxWithdrawn.sub(alreadyWithdrawn);
+                        users[_user].deposits[i].active = false;
+                    }
+                    else{
+                        dividends = holdReferralBonus.add(ROI);
+                    }
+                    holdReferralBonus = 0;
+                }
+                users[_user].holdReferralBonus = holdReferralBonus;
             }
-        }
+            emit Dividends(_user,dividends,users[_user].deposits[i].start,
+                block.timestamp,block.timestamp.sub(users[_user].deposits[i].start));
+                if(dividends>0)
+                users[_user].deposits[i].start = block.timestamp;
+                users[_user].deposits[i].withdrawn = users[_user].deposits[i].withdrawn+dividends;
+                   totalAmount = totalAmount.add(dividends); 
+            }
+        
+        emit Withdraw(_user,totalAmount);
     }
     
+    function getDailyROI(address _user) public view returns(uint256){
+        uint256 dividends;
+        uint256 totalAmount;
+        
+        for(uint256 i=0;i<users[_user].deposits.length;i++){
+            uint256 ROI = DAILY_ROI.mul(users[_user].deposits[i].amount).
+            mul(block.timestamp.sub(users[_user].deposits[i].start)).div(DIVIDER);
+            uint256 maxWithdrawn = users[_user].deposits[i].max;
+            uint256 alreadyWithdrawn = users[_user].deposits[i].withdrawn;
+            uint256 holdReferralBonus = users[_user].holdReferralBonus;
+            
+            if(alreadyWithdrawn != maxWithdrawn){
+                if(holdReferralBonus.add(alreadyWithdrawn)>=maxWithdrawn){
+                    dividends = maxWithdrawn.sub(alreadyWithdrawn);
+                    
+                }
+                else{
+                    
+                    if(holdReferralBonus.add(alreadyWithdrawn).add(ROI)>=maxWithdrawn){
+                        dividends = maxWithdrawn.sub(alreadyWithdrawn);
+                    }
+                    else{
+                        dividends = holdReferralBonus.add(ROI);
+                    }
+                    
+                }
+            }
+              totalAmount = totalAmount.add(dividends); 
+            }
+        
+            return totalAmount;
+        
+    }
     
     
     function DepositAmountInContract() external payable{
@@ -181,6 +235,13 @@ contract TronTradeDubai{
             }
         }
         return totalAmount;
+    }
+    
+    function getAllDepositInfo(address _user,uint256 _index) public view returns(uint256 amount,
+    uint256 start, uint256 withdrawn,uint256 max,bool active){
+        return (users[_user].deposits[_index].amount,users[_user].deposits[_index].start,
+        users[_user].deposits[_index].withdrawn,users[_user].deposits[_index].max,
+        users[_user].deposits[_index].active);
     }
 }
 
