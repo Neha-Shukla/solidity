@@ -8,11 +8,12 @@ contract TronTradeDubai{
     uint256 constant public MAX_WITHDRAWN_PERCENT = 365; // 365% 
     uint256 constant public DIVIDER = 100;
     uint256 constant public DAILY_ROI = 1;               // 1%
+    uint256 constant public TIME = 1; 
     
-    uint256 public totalUsers;
-    uint256 public totalInvested;
-    uint256 public totalWithdrawn;
-    address public owner;
+    uint256 internal totalUsers;
+    uint256 internal totalInvested;
+    uint256 internal totalWithdrawn;
+    address internal owner;
     
     uint256 adminWallet;
     uint256 portfolioWallet;
@@ -50,6 +51,7 @@ contract TronTradeDubai{
     event ReInvest(address _user,uint256 _amount);
     event Dividends(address _user,uint256 _amount,uint256 _start,uint256 _end,uint256 _diff);
     event Withdraw(address _user,uint256 _amount);
+    
     constructor(address _adminAcc,address _portfolioAcc,address _reInvestAcc) public{
         owner=msg.sender;
         adminAcc = _adminAcc;
@@ -92,7 +94,7 @@ contract TronTradeDubai{
         address(uint256(portfolioAcc)).transfer(msg.value.mul(5).div(DIVIDER));
         address(uint256(reInvestAcc)).transfer(msg.value.mul(30).div(DIVIDER));
         
-        DistributeLevelFund(_ref,msg.value);
+        DistributeLevelFund(users[msg.sender].referrer,msg.value);
     }
     
     function DistributeLevelFund(address _ref,uint256 _amount) internal{
@@ -101,13 +103,13 @@ contract TronTradeDubai{
             if(_ref == address(0)){
                break; 
             }
-            if(i==0){
+            else if(i==0){
                 percent = 5;
             }
-            if(i==1){
+            else if(i==1){
                 percent = 3;
             }
-            if(i==2){
+            else if(i==2){
                 percent = 2;
             }
             else{
@@ -123,13 +125,15 @@ contract TronTradeDubai{
     }
     
     function WithdrawFunds() public{
+        require(getWithdrawableAmount()>=MIN_WITHDRAW , "you must withdraw amount > 20 TRX");
+        require(getWithdrawableAmount()<=getContractBalance(),"Low contract balance");
         uint256 totalAmount;
         uint256 dividends;
         address _user = msg.sender;
         
         for(uint256 i=0;i<users[_user].deposits.length;i++){
             uint256 ROI = DAILY_ROI.mul(users[_user].deposits[i].amount).
-            mul(block.timestamp.sub(users[_user].deposits[i].start)).div(DIVIDER);
+            mul(block.timestamp.sub(users[_user].deposits[i].start)).div(DIVIDER).div(TIME);
             uint256 maxWithdrawn = users[_user].deposits[i].max;
             uint256 alreadyWithdrawn = users[_user].deposits[i].withdrawn;
             uint256 holdReferralBonus = users[_user].holdReferralBonus;
@@ -160,17 +164,24 @@ contract TronTradeDubai{
                 users[_user].deposits[i].withdrawn = users[_user].deposits[i].withdrawn+dividends;
                    totalAmount = totalAmount.add(dividends); 
             }
-        
+        require(totalAmount>MIN_WITHDRAW,"Nothing to Withdraw");
+        if(totalAmount>getContractBalance()){
+            totalAmount = getContractBalance();
+        }
+        msg.sender.transfer(totalAmount);
+        totalWithdrawn = totalWithdrawn.add(totalAmount);
+        users[_user].totalWithdrawn = users[_user].totalWithdrawn.add(totalAmount);
         emit Withdraw(_user,totalAmount);
     }
     
-    function getDailyROI(address _user) public view returns(uint256){
-        uint256 dividends;
+    function getWithdrawableAmount() public view returns(uint256){
         uint256 totalAmount;
+        uint256 dividends;
+        address _user = msg.sender;
         
         for(uint256 i=0;i<users[_user].deposits.length;i++){
             uint256 ROI = DAILY_ROI.mul(users[_user].deposits[i].amount).
-            mul(block.timestamp.sub(users[_user].deposits[i].start)).div(DIVIDER);
+            mul(block.timestamp.sub(users[_user].deposits[i].start)).div(DIVIDER).div(TIME);
             uint256 maxWithdrawn = users[_user].deposits[i].max;
             uint256 alreadyWithdrawn = users[_user].deposits[i].withdrawn;
             uint256 holdReferralBonus = users[_user].holdReferralBonus;
@@ -178,41 +189,34 @@ contract TronTradeDubai{
             if(alreadyWithdrawn != maxWithdrawn){
                 if(holdReferralBonus.add(alreadyWithdrawn)>=maxWithdrawn){
                     dividends = maxWithdrawn.sub(alreadyWithdrawn);
-                    
                 }
                 else{
-                    
                     if(holdReferralBonus.add(alreadyWithdrawn).add(ROI)>=maxWithdrawn){
                         dividends = maxWithdrawn.sub(alreadyWithdrawn);
                     }
                     else{
                         dividends = holdReferralBonus.add(ROI);
                     }
-                    
+                 
                 }
+             
             }
-              totalAmount = totalAmount.add(dividends); 
-            }
+            
+            totalAmount = totalAmount.add(dividends); 
+        }
         
-            return totalAmount;
-        
+        return totalAmount;
     }
-    
-    
     function DepositAmountInContract() external payable{
         require(msg.sender == owner, "You are not the owner");
         
     }
     
-    function ifEligibleToGetLevelIncome(address _user,uint256 _level) public view returns(bool){
+    function ifEligibleToGetLevelIncome(address _user,uint256 _level) internal view returns(bool){
         if(users[_user].referrals>=_level)
         return true;
         else 
         return false;
-    }
-    
-    function getTimepassedInSec(address _user,uint256 _index) public view returns(uint256){
-        return block.timestamp.sub(users[_user].deposits[_index].start);
     }
     
     function getUserAddressById(uint256 _id) public view returns(address){
@@ -243,6 +247,20 @@ contract TronTradeDubai{
         users[_user].deposits[_index].withdrawn,users[_user].deposits[_index].max,
         users[_user].deposits[_index].active);
     }
+    
+    function getTotalUsers() public view returns(uint256){
+        return totalUsers;
+    }
+    
+    function getTotalWithdrawn() public view returns(uint256){
+        return totalWithdrawn;
+    }
+    
+    function getTotalInvested() public view returns(uint256){
+        return totalInvested;
+    }
+    
+    
 }
 
 
