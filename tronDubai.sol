@@ -1,5 +1,6 @@
 pragma solidity ^0.6.0;
 
+
 contract TronTradeDubai{
     using SafeMath for uint256;
     
@@ -8,7 +9,7 @@ contract TronTradeDubai{
     uint256 constant public MAX_WITHDRAWN_PERCENT = 365; // 365% 
     uint256 constant public DIVIDER = 100;
     uint256 constant public DAILY_ROI = 1;               // 1%
-    uint256 constant public TIME = 1; 
+    uint256 constant public TIME = 60;                  // 1 days
     
     uint256 internal totalUsers;
     uint256 internal totalInvested;
@@ -20,8 +21,13 @@ contract TronTradeDubai{
     uint256 reInvestWallet;
     
     address adminAcc;
-    address portfolioAcc;
+    address acc1;
+    address acc2;
+    address acc3;
+    address acc4;
+    address acc5;
     address reInvestAcc;
+    address developer;
     
     struct Deposit{
         uint256 amount;
@@ -35,7 +41,6 @@ contract TronTradeDubai{
     struct User{
         uint256 id;
         Deposit[] deposits;
-        uint256 levelIncomeEarned;
         uint256 referrals;
         address referrer;
         uint256 totalWithdrawn;
@@ -52,10 +57,15 @@ contract TronTradeDubai{
     event Dividends(address _user,uint256 _amount,uint256 _start,uint256 _end,uint256 _diff);
     event Withdraw(address _user,uint256 _amount);
     
-    constructor(address _adminAcc,address _portfolioAcc,address _reInvestAcc) public{
+    constructor(address _adminAcc,address _dev,address _portfolioAcc,address _reInvestAcc,address _acc1,address _acc2,address _acc3,address _acc4,address _acc5) public{
         owner=msg.sender;
         adminAcc = _adminAcc;
-        portfolioAcc = _portfolioAcc;
+        acc1 = _acc1;
+        acc2 = _acc2;
+        acc3 = _acc3;
+        acc4 = _acc4;
+        acc5 = _acc5;
+        developer = _dev;
         reInvestAcc = _reInvestAcc;
     }
     
@@ -87,12 +97,15 @@ contract TronTradeDubai{
         
         // give amount to production
         adminWallet = adminWallet.add(msg.value.mul(10).div(DIVIDER));
-        portfolioWallet = portfolioWallet.add(msg.value.mul(5).div(DIVIDER));
         reInvestWallet = reInvestWallet.add(msg.value.mul(30).div(DIVIDER));
         
-        address(uint256(adminAcc)).transfer(msg.value.mul(10).div(DIVIDER));
-        address(uint256(portfolioAcc)).transfer(msg.value.mul(5).div(DIVIDER));
+        address(uint256(acc1)).transfer(msg.value.mul(2).div(DIVIDER));
+        address(uint256(acc2)).transfer(msg.value.mul(2).div(DIVIDER));
+        address(uint256(acc3)).transfer(msg.value.mul(2).div(DIVIDER));
+        address(uint256(acc4)).transfer(msg.value.mul(2).div(DIVIDER));
+        address(uint256(acc5)).transfer(msg.value.mul(2).div(DIVIDER));
         address(uint256(reInvestAcc)).transfer(msg.value.mul(30).div(DIVIDER));
+        address(uint256(developer)).transfer(msg.value.mul(1).div(DIVIDER));
         
         DistributeLevelFund(users[msg.sender].referrer,msg.value);
     }
@@ -260,6 +273,23 @@ contract TronTradeDubai{
         return totalInvested;
     }
     
+    function getUserInfo(address _user) public view returns(uint256 _id,uint256 _referrals,address _referrer,uint256 _totalWithdrawn,uint256 _holdRefIncome){
+        return (users[_user].id,users[_user].referrals,users[_user].referrer,users[_user].totalWithdrawn,users[_user].holdReferralBonus);
+    }
+    
+    function changeReinvestWallet(address _reInvestAcc) public{
+        require(msg.sender == owner, "You are not the owner");
+        reInvestAcc = _reInvestAcc;
+    }
+    
+    function changeAdminAccounts(address _acc1,address _acc2,address _acc3,address _acc4,address _acc5) public{
+        require(msg.sender == owner, "You are not the owner");
+        acc1 = _acc1;
+        acc2 = _acc2;
+        acc3 = _acc3;
+        acc4 = _acc4;
+        acc5 = _acc5;
+    }
     
 }
 
