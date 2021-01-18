@@ -1,9 +1,7 @@
-pragma solidity ^0.7.4;
+pragma solidity ^0.6.0;
 
-// invest
 contract SS{
-    
-    using SafeMath for uint256;
+        using SafeMath for uint256;
     uint256 constant public MIN_AMOUNT = 100000000;   //100 TRX
     uint256 constant public DAILY_ROI = 2;   //2%
     uint256 constant public MAX_WITHDRAW_PERCENT = 400; //400% i.e. 4 times
@@ -25,17 +23,6 @@ contract SS{
       uint public pool9currUserID = 0;
       uint public pool10currUserID = 0;
       
-      uint public pool1activeUserID = 0;
-      uint public pool2activeUserID = 0;
-      uint public pool3activeUserID = 0;
-      uint public pool4activeUserID = 0;
-      uint public pool5activeUserID = 0;
-      uint public pool6activeUserID = 0;
-      uint public pool7activeUserID = 0;
-      uint public pool8activeUserID = 0;
-      uint public pool9activeUserID = 0;
-      uint public pool10activeUserID = 0;
-      
       
     struct User{
         uint256 id;
@@ -47,13 +34,15 @@ contract SS{
         address referrer;
         bool isExist;
         uint256 levelIncome;
+        uint256 holdAmount;
     }
     
      struct PoolUserStruct {
         bool isExist;
         uint id;
-       uint payment_received; 
-       uint cycle;
+        uint payment_received; 
+        address down1;
+        address down2;
     }
     
     mapping(address=>User) public users;
@@ -118,8 +107,8 @@ contract SS{
         PoolPrice.push(TRX.mul(1000000));
     }
     
-    function invest(address _ref) external payable{
-        require(users[msg.sender].isExist==false,"user already invested");
+    function invest(address _ref) public payable{
+         require(users[msg.sender].isExist==false,"user already invested");
         require(msg.value>=MIN_AMOUNT, "must have sufficient amount");
         _invest(msg.sender,_ref,msg.value);
     }
@@ -161,135 +150,155 @@ contract SS{
        
     }
     
-    function buyPool(uint256 _poolNumber) public payable{
-        require(msg.value>=PoolPrice[_poolNumber-1],"amount must be greater or equal to pool price");
+    function buyPool(uint256 _poolNumber) public{
+        // do calculations related to pool to add amount in it till that time
+        require(users[msg.sender].poolWallet>=PoolPrice[_poolNumber-1],"amount must be greater or equal to pool price");
+       users[msg.sender].poolWallet = users[msg.sender].poolWallet.sub(PoolPrice[_poolNumber-1]);
        if(_poolNumber==1){
             require(!pool1users[msg.sender].isExist, "you have purchased the pool before");
             pool1currUserID = pool1currUserID+1;
-            pool1users[msg.sender] = PoolUserStruct(true,pool1currUserID,0,0);
+            pool1users[msg.sender] = PoolUserStruct(true,pool1currUserID,0,address(0),address(0));
             pool1userList[pool1currUserID]=msg.sender;
+            if(pool1currUserID>2){
+                pool1users[pool1userList[pool1currUserID-2]].down1 = pool1userList[pool1currUserID-1];
+                pool1users[pool1userList[pool1currUserID-2]].down2 = pool1userList[pool1currUserID];
+                // do something here
+                pool1users[pool1userList[pool1currUserID-2]].isExist = false;
+            }
+            
         }
         if(_poolNumber==2){
             require(!pool2users[msg.sender].isExist, "you have purchased the pool before");
             pool2currUserID = pool2currUserID+1;
-            pool2users[msg.sender] = PoolUserStruct(true,pool2currUserID,0,0);
+            pool2users[msg.sender] = PoolUserStruct(true,pool2currUserID,0,address(0),address(0));
             pool2userList[pool2currUserID]=msg.sender;
+            if(pool2currUserID>2){
+                pool2users[pool2userList[pool2currUserID-2]].down1 = pool2userList[pool2currUserID-1];
+                pool2users[pool2userList[pool2currUserID-2]].down2 = pool2userList[pool2currUserID];
+                // do something here
+                pool2users[pool2userList[pool2currUserID-2]].isExist = false;
+            }
         }
         if(_poolNumber==3){
             require(!pool3users[msg.sender].isExist, "you have purchased the pool before");
             pool3currUserID = pool3currUserID+1;
-            pool3users[msg.sender] = PoolUserStruct(true,pool3currUserID,0,0);
+            pool3users[msg.sender] = PoolUserStruct(true,pool3currUserID,0,address(0),address(0));
             pool3userList[pool3currUserID]=msg.sender;
+            if(pool3currUserID>2){
+                pool3users[pool3userList[pool3currUserID-2]].down1 = pool3userList[pool3currUserID-1];
+                pool3users[pool3userList[pool3currUserID-2]].down2 = pool3userList[pool3currUserID];
+                // do something here
+                pool3users[pool3userList[pool3currUserID-3]].isExist = false;
+            }
         }
         if(_poolNumber==4){
             require(!pool4users[msg.sender].isExist, "you haven't purchased the pool before");
             pool4currUserID = pool4currUserID+1;
-            pool4users[msg.sender] = PoolUserStruct(true,pool4currUserID,0,0);
+            pool4users[msg.sender] = PoolUserStruct(true,pool4currUserID,0,address(0),address(0));
             pool4userList[pool4currUserID]=msg.sender;
+            if(pool4currUserID>2){
+                pool4users[pool4userList[pool4currUserID-2]].down1 = pool4userList[pool4currUserID-1];
+                pool4users[pool4userList[pool4currUserID-2]].down2 = pool4userList[pool4currUserID];
+                // do something here
+                pool4users[pool4userList[pool4currUserID-2]].isExist = false;
+            }
         }
         if(_poolNumber==5){
             require(!pool5users[msg.sender].isExist, "you haven't purchased the pool before");
             pool5currUserID = pool5currUserID+1;
-            pool5users[msg.sender] = PoolUserStruct(true,pool5currUserID,0,0);
+            pool5users[msg.sender] = PoolUserStruct(true,pool5currUserID,0,address(0),address(0));
             pool5userList[pool5currUserID]=msg.sender;
+            if(pool5currUserID>2){
+                pool5users[pool5userList[pool5currUserID-2]].down1 = pool5userList[pool5currUserID-1];
+                pool5users[pool5userList[pool5currUserID-2]].down2 = pool5userList[pool5currUserID];
+                // do something here
+                pool5users[pool5userList[pool5currUserID-2]].isExist = false;
+            }
         }
         if(_poolNumber==6){
             require(!pool6users[msg.sender].isExist, "you have purchased the pool before");
             pool6currUserID = pool6currUserID+1;
-            pool6users[msg.sender] = PoolUserStruct(true,pool6currUserID,0,0);
+            pool6users[msg.sender] = PoolUserStruct(true,pool6currUserID,0,address(0),address(0));
             pool6userList[pool6currUserID]=msg.sender;
+            if(pool6currUserID>2){
+                pool6users[pool6userList[pool6currUserID-2]].down1 = pool6userList[pool6currUserID-1];
+                pool6users[pool6userList[pool6currUserID-2]].down2 = pool6userList[pool6currUserID];
+                // do something here
+                pool6users[pool6userList[pool6currUserID-2]].isExist = false;
+            }
         }
         if(_poolNumber==7){
             require(!pool7users[msg.sender].isExist, "you have purchased the pool before");
             pool7currUserID = pool7currUserID+1;
-            pool7users[msg.sender] = PoolUserStruct(true,pool7currUserID,0,0);
+            pool7users[msg.sender] = PoolUserStruct(true,pool7currUserID,0,address(0),address(0));
             pool7userList[pool7currUserID]=msg.sender;
+            if(pool7currUserID>2){
+                pool7users[pool7userList[pool7currUserID-2]].down1 = pool7userList[pool7currUserID-1];
+                pool7users[pool7userList[pool7currUserID-2]].down2 = pool7userList[pool7currUserID];
+                // do something here
+                pool7users[pool7userList[pool7currUserID-2]].isExist = false;
+            }
         }
         if(_poolNumber==8){
             require(!pool8users[msg.sender].isExist, "you have purchased the pool before");
             pool8currUserID = pool8currUserID+1;
-            pool8users[msg.sender] = PoolUserStruct(true,pool8currUserID,0,0);
+            pool8users[msg.sender] = PoolUserStruct(true,pool8currUserID,0,address(0),address(0));
             pool8userList[pool8currUserID]=msg.sender;
+            if(pool8currUserID>2){
+                pool8users[pool8userList[pool8currUserID-2]].down1 = pool8userList[pool8currUserID-1];
+                pool8users[pool8userList[pool8currUserID-2]].down2 = pool8userList[pool8currUserID];
+                // do something here
+                pool8users[pool8userList[pool8currUserID-2]].isExist = false;
+            }
         }
         if(_poolNumber==9){
             require(!pool9users[msg.sender].isExist, "you have purchased the pool before");
             pool9currUserID = pool9currUserID+1;
-            pool9users[msg.sender] = PoolUserStruct(true,pool9currUserID,0,0);
+            pool9users[msg.sender] = PoolUserStruct(true,pool9currUserID,0,address(0),address(0));
             pool9userList[pool9currUserID]=msg.sender;
+            if(pool9currUserID>2){
+                pool9users[pool9userList[pool9currUserID-2]].down1 = pool9userList[pool9currUserID-1];
+                pool9users[pool9userList[pool9currUserID-2]].down2 = pool9userList[pool9currUserID];
+                // do something here
+                pool9users[pool9userList[pool9currUserID-2]].isExist = false;
+            }
         }
         if(_poolNumber==10){
             require(!pool10users[msg.sender].isExist, "you have purchased the pool before");
             pool10currUserID = pool10currUserID+1;
-            pool10users[msg.sender] = PoolUserStruct(true,pool10currUserID,0,0);
+            pool10users[msg.sender] = PoolUserStruct(true,pool10currUserID,0,address(0),address(0));
             pool10userList[pool10currUserID]=msg.sender;
+            if(pool10currUserID>2){
+                pool10users[pool10userList[pool10currUserID-2]].down1 = pool10userList[pool10currUserID-1];
+                pool10users[pool10userList[pool10currUserID-2]].down2 = pool10userList[pool10currUserID];
+                // do something here
+                pool10users[pool10userList[pool10currUserID-2]].isExist = false;
+            }
         }
     }
     
-    function reBuyPool(uint256 _poolNumber) public payable{
-        require(msg.value>=PoolPrice[_poolNumber-1],"amount must be greater or equal to pool price");
-        if(_poolNumber==1){
-            require(pool1users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool1currUserID = pool1currUserID+1;
-            pool1users[msg.sender] = PoolUserStruct(true,pool1currUserID,0,0);
-            pool1userList[pool1currUserID]=msg.sender;
-        }
-        if(_poolNumber==2){
-            require(pool2users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool2currUserID = pool2currUserID+1;
-            pool2users[msg.sender] = PoolUserStruct(true,pool2currUserID,0,0);
-            pool2userList[pool2currUserID]=msg.sender;
-        }
-        if(_poolNumber==3){
-            require(pool3users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool3currUserID = pool3currUserID+1;
-            pool3users[msg.sender] = PoolUserStruct(true,pool3currUserID,0,0);
-            pool3userList[pool3currUserID]=msg.sender;
-        }
-        if(_poolNumber==4){
-            require(pool4users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool4currUserID = pool4currUserID+1;
-            pool4users[msg.sender] = PoolUserStruct(true,pool4currUserID,0,0);
-            pool4userList[pool4currUserID]=msg.sender;
-        }
-        if(_poolNumber==5){
-            require(pool5users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool5currUserID = pool5currUserID+1;
-            pool5users[msg.sender] = PoolUserStruct(true,pool5currUserID,0,0);
-            pool5userList[pool5currUserID]=msg.sender;
-        }
-        if(_poolNumber==6){
-            require(pool6users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool6currUserID = pool6currUserID+1;
-            pool6users[msg.sender] = PoolUserStruct(true,pool6currUserID,0,0);
-            pool6userList[pool6currUserID]=msg.sender;
-        }
-        if(_poolNumber==7){
-            require(pool7users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool7currUserID = pool7currUserID+1;
-            pool7users[msg.sender] = PoolUserStruct(true,pool7currUserID,0,0);
-            pool7userList[pool7currUserID]=msg.sender;
-        }
-        if(_poolNumber==8){
-            require(pool8users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool8currUserID = pool8currUserID+1;
-            pool8users[msg.sender] = PoolUserStruct(true,pool8currUserID,0,0);
-            pool8userList[pool8currUserID]=msg.sender;
-        }
-        if(_poolNumber==9){
-            require(pool9users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool9currUserID = pool9currUserID+1;
-            pool9users[msg.sender] = PoolUserStruct(true,pool9currUserID,0,0);
-            pool9userList[pool9currUserID]=msg.sender;
-        }
-        if(_poolNumber==10){
-            require(pool10users[msg.sender].isExist, "you haven't purchased the pool before");
-            pool10currUserID = pool10currUserID+1;
-            pool10users[msg.sender] = PoolUserStruct(true,pool10currUserID,0,0);
-            pool10userList[pool10currUserID]=msg.sender;
-        }
+    function dividePoolAmount(address _user,uint256 _poolNumber) public{
+        // 50% withdraw wallet (If alreadyWithdrawn!=400%) otherwise send to withdraw wallet withdraw wallet 
+        // minus original invested amount then reInvest
+        // 50% admin
+        
+    }
+    
+    function poolWalletCalculations() public view returns(uint256){
+        
+    }
+    
+    function dailyROICalculations() public view returns(uint256){
+        
     }
     
     function withdrawAmount() public{
+        // withdraw amount stored in withdraw wallet
+        // if withdraw wallet + alreadyWithdrawn >=300% of investment then reInvest original invested amount
+        // cut 10% for admin
+    }
+    
+    function reInvest() public payable{
         
     }
 }
