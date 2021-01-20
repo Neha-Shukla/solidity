@@ -45,11 +45,27 @@ contract TronTradeDubai{
         address referrer;
         uint256 totalWithdrawn;
         uint256 holdReferralBonus;
+        uint256 referralIncome;
+        uint256 roiEarned;
         bool isExist;
+    }
+    
+    struct Level{
+        uint256 level1;
+        uint256 level2;
+        uint256 level3;
+        uint256 level4;
+        uint256 level5;
+        uint256 level6;
+        uint256 level7;
+        uint256 level8;
+        uint256 level9;
+        uint256 level10;
     }
     
     mapping(address=>User) public users;
     mapping(uint256=>address) public usersList;
+    mapping(address=>Level) public levelUsersCount;
     
     event NewUserRegisterEvent(address _user,address _ref,uint256 _amount);
     event NewDeposit(address _user,uint256 _amount);
@@ -57,9 +73,8 @@ contract TronTradeDubai{
     event Dividends(address _user,uint256 _amount,uint256 _start,uint256 _end,uint256 _diff);
     event Withdraw(address _user,uint256 _amount);
     
-    constructor(address _adminAcc,address _dev,address _portfolioAcc,address _reInvestAcc,address _acc1,address _acc2,address _acc3,address _acc4,address _acc5) public{
+    constructor(address _dev,address _reInvestAcc,address _acc1,address _acc2,address _acc3,address _acc4,address _acc5) public{
         owner=msg.sender;
-        adminAcc = _adminAcc;
         acc1 = _acc1;
         acc2 = _acc2;
         acc3 = _acc3;
@@ -92,11 +107,13 @@ contract TronTradeDubai{
         }
         totalInvested = totalInvested.add(msg.value);
         
+        users[_ref].referralIncome = users[_ref].referralIncome.
+              add(msg.value.mul(5).div(DIVIDER));
+              
         users[msg.sender].deposits.push(Deposit(msg.value,block.timestamp,0,0,
         MAX_WITHDRAWN_PERCENT.mul(msg.value).div(DIVIDER),true));
         
         // give amount to production
-        adminWallet = adminWallet.add(msg.value.mul(10).div(DIVIDER));
         reInvestWallet = reInvestWallet.add(msg.value.mul(30).div(DIVIDER));
         
         address(uint256(acc1)).transfer(msg.value.mul(2).div(DIVIDER));
@@ -128,15 +145,49 @@ contract TronTradeDubai{
             else{
                 percent = 1;
             }
+            
             if(ifEligibleToGetLevelIncome(_ref,i+1)){
               users[_ref].holdReferralBonus = users[_ref].holdReferralBonus.
               add(_amount.mul(percent).div(DIVIDER));
             }
+            setLevels(_ref,i+1);
             _ref = users[_ref].referrer;
             }
-        
     }
     
+   function setLevels(address _user,uint256 _level) public{
+       if(_level==1){
+           levelUsersCount[_user].level1 = levelUsersCount[_user].level1.add(1);
+       }
+       if(_level==2){
+           levelUsersCount[_user].level2 = levelUsersCount[_user].level2.add(1);
+       }
+       if(_level==3){
+           levelUsersCount[_user].level3 = levelUsersCount[_user].level3.add(1);
+       }
+       if(_level==4){
+           levelUsersCount[_user].level4 = levelUsersCount[_user].level4.add(1);
+       }
+       if(_level==5){
+           levelUsersCount[_user].level5 = levelUsersCount[_user].level5.add(1);
+       }
+       if(_level==6){
+           levelUsersCount[_user].level6 = levelUsersCount[_user].level6.add(1);
+       }
+       if(_level==7){
+           levelUsersCount[_user].level7 = levelUsersCount[_user].level7.add(1);
+       }
+       if(_level==8){
+           levelUsersCount[_user].level8 = levelUsersCount[_user].level8.add(1);
+       }
+       if(_level==9){
+           levelUsersCount[_user].level9 = levelUsersCount[_user].level9.add(1);
+       }
+       if(_level==10){
+           levelUsersCount[_user].level10 = levelUsersCount[_user].level10.add(1);
+       }
+   }
+   
     function WithdrawFunds() public{
         require(getWithdrawableAmount()>=MIN_WITHDRAW , "you must withdraw amount > 20 TRX");
         require(getWithdrawableAmount()<=getContractBalance(),"Low contract balance");
@@ -161,10 +212,12 @@ contract TronTradeDubai{
                     
                     if(holdReferralBonus.add(alreadyWithdrawn).add(ROI)>=maxWithdrawn){
                         dividends = maxWithdrawn.sub(alreadyWithdrawn);
+                        users[_user].roiEarned = users[_user].roiEarned.add(maxWithdrawn.sub(alreadyWithdrawn.add(holdReferralBonus)));
                         users[_user].deposits[i].active = false;
                     }
                     else{
                         dividends = holdReferralBonus.add(ROI);
+                        users[_user].roiEarned = users[_user].roiEarned.add(ROI);
                     }
                     holdReferralBonus = 0;
                 }
@@ -244,12 +297,12 @@ contract TronTradeDubai{
         return address(this).balance;
     }
     
-    function getUserTotalActiveDeposits(address _user) public view returns(uint256){
+    function getUserTotalDeposits(address _user) public view returns(uint256){
         uint256 totalAmount=0;
         for(uint256 i=0;i<getTotalDepositsCount(_user);i++){
-            if(users[_user].deposits[i].active){
+            
                 totalAmount = totalAmount.add(users[_user].deposits[i].amount);
-            }
+            
         }
         return totalAmount;
     }
@@ -273,8 +326,8 @@ contract TronTradeDubai{
         return totalInvested;
     }
     
-    function getUserInfo(address _user) public view returns(uint256 _id,uint256 _referrals,address _referrer,uint256 _totalWithdrawn,uint256 _holdRefIncome){
-        return (users[_user].id,users[_user].referrals,users[_user].referrer,users[_user].totalWithdrawn,users[_user].holdReferralBonus);
+    function getUserInfo(address _user) public view returns(uint256 _id,uint256 _referrals,address _referrer,uint256 _totalWithdrawn,uint256 _holdRefIncome,uint256 _referralIncome,uint256 _roiEarned){
+        return (users[_user].id,users[_user].referrals,users[_user].referrer,users[_user].totalWithdrawn,users[_user].holdReferralBonus,users[_user].referralIncome,users[_user].roiEarned);
     }
     
     function changeReinvestWallet(address _reInvestAcc) public{
@@ -289,6 +342,43 @@ contract TronTradeDubai{
         acc3 = _acc3;
         acc4 = _acc4;
         acc5 = _acc5;
+    }
+    
+    function getReInvestWallet() public view returns(uint256){
+        return reInvestWallet;
+    }
+    
+    function getLevelUserCount(address _user,uint256 _level) public view returns(uint256){
+        if(_level==1){
+           return levelUsersCount[_user].level1;
+       }
+       if(_level==2){
+          return levelUsersCount[_user].level2;
+       }
+       if(_level==3){
+           return levelUsersCount[_user].level3;
+       }
+       if(_level==4){
+           return levelUsersCount[_user].level4;
+       }
+       if(_level==5){
+           return levelUsersCount[_user].level5;
+       }
+       if(_level==6){
+           return levelUsersCount[_user].level6;
+       }
+       if(_level==7){
+          return levelUsersCount[_user].level7;
+       }
+       if(_level==8){
+          return levelUsersCount[_user].level8;
+       }
+       if(_level==9){
+           return levelUsersCount[_user].level9;
+       }
+       if(_level==10){
+           return levelUsersCount[_user].level10;
+       }
     }
     
 }
