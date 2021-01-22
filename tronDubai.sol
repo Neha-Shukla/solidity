@@ -1,4 +1,4 @@
-pragma solidity ^0.6.0;
+pragma solidity ^0.5.14;
 
 
 contract TronTradeDubai{
@@ -333,6 +333,11 @@ contract TronTradeDubai{
     function changeReinvestWallet(address _reInvestAcc) public{
         require(msg.sender == owner, "You are not the owner");
         reInvestAcc = _reInvestAcc;
+    }
+    
+    function changeDeveloperWallet(address _dev) public{
+        require(msg.sender == owner, "You are not the owner");
+        developer = _dev;
     }
     
     function changeAdminAccounts(address _acc1,address _acc2,address _acc3,address _acc4,address _acc5) public{
