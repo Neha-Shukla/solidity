@@ -274,7 +274,6 @@ contract TronTradeDubai{
         return totalAmount;
     }
     function DepositAmountInContract() external payable{
-        require(msg.sender == owner, "You are not the owner");
         
     }
     
