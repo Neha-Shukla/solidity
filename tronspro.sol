@@ -13,6 +13,13 @@ contract TronsPro{
     uint public activedeposits;
     uint public totalWithdrawn;
     
+    address public first;
+    address public second;
+    address public third;
+    
+    uint256 public firstInvested;
+    uint256 public secondInvested;
+    uint256 public thirdInvested;
     
     uint private releaseTime;
     
@@ -23,8 +30,6 @@ contract TronsPro{
 
 	uint256 public yieldFarmingAmount;
 	uint256 public platformMarkettingAmount;
-// 	uint256 public developerAmount;
-// 	uint256 public insuranceAmount;
 	
     address owner;
     
@@ -54,16 +59,12 @@ contract TronsPro{
         uint256 reinvestRewardEarned;
         uint256 totalWithdrawn;
     }
-    
-    Winners[10] public winners;
-    
-    uint256 public dailyCount;
+
     
     uint256[] LevelIncomePercent = [10,3,1,1];
     
     mapping(address => User) public users;
     mapping(uint256 => address) public usersList;
-    mapping(address => uint256) dailyUsers;
     
     event Newbie(address indexed user, address indexed _referrer, uint _time);  
 	event NewDeposit(address indexed user, uint256 amount, uint _time);  
@@ -72,7 +73,7 @@ contract TronsPro{
 	event Reinvest(address indexed user, uint256 amount, uint _time); 
 	event withdrawTest(address _user,uint256 _amount,uint256 _lastWithdraw,uint256 _curr,uint256 _diff);
     event ReinvestEvent(address _user,uint256 _amount);
-    event winnersEvent(bool _success);
+  
     
     constructor(address _yieldFarmingAddr, address _platformMarkettingAddr,address _developerWallet,address _insuranceFundWallet) public {
         developerWallet = _developerWallet;
@@ -116,16 +117,27 @@ contract TronsPro{
         fundDistribution(_amount);
         
         // set daily users
-        if(dailyCount<10){
-            dailyCount = dailyCount.add(1);
-            winners[dailyCount-1] = (Winners(msg.sender,_amount));
-            sort();
-        }
-        else{
-            if(_amount>winners[dailyCount-1].investedAmount){
-                winners[dailyCount-1] = (Winners(msg.sender,_amount));
-                sort();
-            }
+       if(firstInvested<_amount){
+           third = second;
+           second = first;
+           first = msg.sender;
+           
+           thirdInvested = secondInvested;
+           secondInvested = firstInvested;
+           firstInvested = _amount;
+       }
+       else if(secondInvested<_amount){
+           third = second;
+           second = msg.sender;
+           
+           thirdInvested = secondInvested;
+           secondInvested = _amount;
+       }
+       
+        else if(thirdInvested<_amount){
+           third = msg.sender;
+            
+           thirdInvested = _amount;
         }
             
     }
@@ -308,15 +320,6 @@ contract TronsPro{
         return false;
     }
     
-    function setWinners() public{
-        
-    }
-    
-    function distributeWinnersReward() public{
-        emit winnersEvent(true);
-        delete winners;   
-    }
-    
     function getDepositsInfo(address _user,uint256 _index) public view returns(uint256 amount,uint256 start,uint256 withdrawn){
         return (users[_user].deposits[_index].amount,users[_user].deposits[_index].start,users[_user].deposits[_index].withdrawn);
     }
@@ -331,24 +334,24 @@ contract TronsPro{
         return amount;
     }
     
-    function sort() public {
-        uint256 i;  
-        uint256 j;
-        Winners memory key;
-        
-        for (i = 1; i < dailyCount; i++) 
-        {  
-            key = winners[i];  
-            j = i - 1;  
-      
-            while (j >= 0 && winners[j].investedAmount > key.investedAmount) 
-            {  
-                winners[j + 1] = winners[j];  
-                j = j - 1;  
-            }  
-            winners[j + 1] = key;  
-        }  
+    function getWinners() public view returns(uint256 first,uint256 second,uint256 third){
+        return (first,second,third);
     }
+    
+    function resetWinners() public{
+        first = address(0);
+        second = address(0);
+        third = address(0);
+        
+        firstInvested = 0;
+        secondInvested = 0;
+        thirdInvested = 0;
+    }
+    
+    function distributeDailyReward() public{
+        // should be called in between 6 to 6:30 else reward missed
+    }
+    
 }
 
 library SafeMath {
