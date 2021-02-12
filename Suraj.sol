@@ -22,7 +22,6 @@ contract SS{
     uint public pool7currUserID = 0;
     uint public pool8currUserID = 0;
     uint public pool9currUserID = 0;
-    uint public pool10currUserID = 0;
     
     struct User{
         address referrer;
@@ -43,9 +42,12 @@ contract SS{
     struct PoolUserStruct {
         bool isExist;
         uint id;
-        bool payment_received; 
         address down1;
         address down2;
+    }
+    struct Income{
+        uint256 rewardEarned;
+        uint256 levelIncomeEarned;
     }
     
     mapping (address => PoolUserStruct) public pool1users;
@@ -75,10 +77,8 @@ contract SS{
      mapping (address => PoolUserStruct) public pool9users;
      mapping (uint => address) public pool9userList;
      
-     mapping (address => PoolUserStruct) public pool10users;
-     mapping (uint => address) public pool10userList;
-     
     mapping(address=>User) public users;
+    mapping(address=>Income) public incomes;
     event investedSuccessfullyEvent(address _user,address _ref,uint256 _amount);
    
     constructor() public{
@@ -87,23 +87,28 @@ contract SS{
         LevelIncome.push(300);
         LevelIncome.push(200);
         LevelIncome.push(100);
-        LevelIncome.push(100);
-        LevelIncome.push(100);
-        LevelIncome.push(100);
         LevelIncome.push(50);
-        LevelIncome.push(50);
-        LevelIncome.push(50);
+        LevelIncome.push(30);
+        LevelIncome.push(20);
+        LevelIncome.push(10);
+        LevelIncome.push(1);
+        LevelIncome.push(1);
+        LevelIncome.push(1);
+        LevelIncome.push(1);
+        LevelIncome.push(1);
+        LevelIncome.push(1);
+        LevelIncome.push(1);
         
         PoolPrice.push(TRX.mul(100));
-        PoolPrice.push(TRX.mul(200));
         PoolPrice.push(TRX.mul(500));
-        PoolPrice.push(TRX.mul(1000));
+        PoolPrice.push(TRX.mul(1500));
+        PoolPrice.push(TRX.mul(2000));
         PoolPrice.push(TRX.mul(2500));
         PoolPrice.push(TRX.mul(5000));
         PoolPrice.push(TRX.mul(10000));
+        PoolPrice.push(TRX.mul(20000));
         PoolPrice.push(TRX.mul(25000));
-        PoolPrice.push(TRX.mul(50000));
-        PoolPrice.push(TRX.mul(100000));
+        
     }
     
     function invest(address _ref) external payable{
@@ -127,13 +132,14 @@ contract SS{
         totalUsers = totalUsers.add(1);
        
         users[_user].referrer = _ref;
-        if(msg.value>=TRX.mul(200)){
+        if(msg.value>=TRX.mul(2500)){
             users[_ref].count = users[_ref].count.add(1);
             if(users[_ref].count >= 10){
-                // give some percent
+                incomes[_ref].rewardEarned = incomes[_ref].rewardEarned.add(msg.value.div(10)); 
+                address(uint256(_ref)).transfer(msg.value.div(10));
             }
         }
-        users[_user].invested = _amount;
+        users[_user].invested = _amount.sub(msg.value.div(10));
         users[_user].startTime = block.timestamp;
         users[_user].isExist = true;
         users[_user].ROITime = block.timestamp;
@@ -149,7 +155,7 @@ contract SS{
     
     function giveLevelIncome(address _ref,uint256 _amount) internal{
     
-        for(uint256 i=0;i<10;i++){
+        for(uint256 i=0;i<15;i++){
             if(_ref==address(0)){
                 break;
             }
@@ -176,7 +182,7 @@ contract SS{
         if(_poolNumber==1){
             require(!pool1users[msg.sender].isExist, "you have purchased the pool before");
             pool1currUserID = pool1currUserID+1;
-            pool1users[msg.sender] = PoolUserStruct(true,pool1currUserID,false,address(0),address(0));
+            pool1users[msg.sender] = PoolUserStruct(true,pool1currUserID,address(0),address(0));
             pool1userList[pool1currUserID]=msg.sender;
             if(pool1currUserID>2){
                 pool1users[pool1userList[pool1currUserID-2]].down1 = pool1userList[pool1currUserID-1];
@@ -191,7 +197,7 @@ contract SS{
         if(_poolNumber==2){
             require(!pool2users[msg.sender].isExist, "you have purchased the pool before");
             pool2currUserID = pool2currUserID+1;
-            pool2users[msg.sender] = PoolUserStruct(true,pool2currUserID,false,address(0),address(0));
+            pool2users[msg.sender] = PoolUserStruct(true,pool2currUserID,address(0),address(0));
             pool2userList[pool2currUserID]=msg.sender;
             if(pool2currUserID>2){
                 pool2users[pool2userList[pool2currUserID-2]].down1 = pool2userList[pool2currUserID-1];
@@ -205,7 +211,7 @@ contract SS{
         if(_poolNumber==3){
             require(!pool3users[msg.sender].isExist, "you have purchased the pool before");
             pool3currUserID = pool3currUserID+1;
-            pool3users[msg.sender] = PoolUserStruct(true,pool3currUserID,false,address(0),address(0));
+            pool3users[msg.sender] = PoolUserStruct(true,pool3currUserID,address(0),address(0));
             pool3userList[pool3currUserID]=msg.sender;
             if(pool3currUserID>2){
                 pool3users[pool3userList[pool3currUserID-2]].down1 = pool3userList[pool3currUserID-1];
@@ -217,7 +223,7 @@ contract SS{
         if(_poolNumber==4){
             require(!pool4users[msg.sender].isExist, "you haven't purchased the pool before");
             pool4currUserID = pool4currUserID+1;
-            pool4users[msg.sender] = PoolUserStruct(true,pool4currUserID,false,address(0),address(0));
+            pool4users[msg.sender] = PoolUserStruct(true,pool4currUserID,address(0),address(0));
             pool4userList[pool4currUserID]=msg.sender;
             if(pool4currUserID>2){
                 pool4users[pool4userList[pool4currUserID-2]].down1 = pool4userList[pool4currUserID-1];
@@ -229,7 +235,7 @@ contract SS{
         if(_poolNumber==5){
             require(!pool5users[msg.sender].isExist, "you haven't purchased the pool before");
             pool5currUserID = pool5currUserID+1;
-            pool5users[msg.sender] = PoolUserStruct(true,pool5currUserID,false,address(0),address(0));
+            pool5users[msg.sender] = PoolUserStruct(true,pool5currUserID,address(0),address(0));
             pool5userList[pool5currUserID]=msg.sender;
             if(pool5currUserID>2){
                 pool5users[pool5userList[pool5currUserID-2]].down1 = pool5userList[pool5currUserID-1];
@@ -241,7 +247,7 @@ contract SS{
         if(_poolNumber==6){
             require(!pool6users[msg.sender].isExist, "you have purchased the pool before");
             pool6currUserID = pool6currUserID+1;
-            pool6users[msg.sender] = PoolUserStruct(true,pool6currUserID,false,address(0),address(0));
+            pool6users[msg.sender] = PoolUserStruct(true,pool6currUserID,address(0),address(0));
             pool6userList[pool6currUserID]=msg.sender;
             if(pool6currUserID>2){
                 pool6users[pool6userList[pool6currUserID-2]].down1 = pool6userList[pool6currUserID-1];
@@ -253,7 +259,7 @@ contract SS{
         if(_poolNumber==7){
             require(!pool7users[msg.sender].isExist, "you have purchased the pool before");
             pool7currUserID = pool7currUserID+1;
-            pool7users[msg.sender] = PoolUserStruct(true,pool7currUserID,false,address(0),address(0));
+            pool7users[msg.sender] = PoolUserStruct(true,pool7currUserID,address(0),address(0));
             pool7userList[pool7currUserID]=msg.sender;
             if(pool7currUserID>2){
                 pool7users[pool7userList[pool7currUserID-2]].down1 = pool7userList[pool7currUserID-1];
@@ -265,7 +271,7 @@ contract SS{
         if(_poolNumber==8){
             require(!pool8users[msg.sender].isExist, "you have purchased the pool before");
             pool8currUserID = pool8currUserID+1;
-            pool8users[msg.sender] = PoolUserStruct(true,pool8currUserID,false,address(0),address(0));
+            pool8users[msg.sender] = PoolUserStruct(true,pool8currUserID,address(0),address(0));
             pool8userList[pool8currUserID]=msg.sender;
             if(pool8currUserID>2){
                 pool8users[pool8userList[pool8currUserID-2]].down1 = pool8userList[pool8currUserID-1];
@@ -277,7 +283,7 @@ contract SS{
         if(_poolNumber==9){
             require(!pool9users[msg.sender].isExist, "you have purchased the pool before");
             pool9currUserID = pool9currUserID+1;
-            pool9users[msg.sender] = PoolUserStruct(true,pool9currUserID,false,address(0),address(0));
+            pool9users[msg.sender] = PoolUserStruct(true,pool9currUserID,address(0),address(0));
             pool9userList[pool9currUserID]=msg.sender;
             if(pool9currUserID>2){
                 pool9users[pool9userList[pool9currUserID-2]].down1 = pool9userList[pool9currUserID-1];
@@ -286,31 +292,14 @@ contract SS{
                 pool9users[pool9userList[pool9currUserID-2]].isExist = false;
             }
         }
-        if(_poolNumber==10){
-            require(!pool10users[msg.sender].isExist, "you have purchased the pool before");
-            pool10currUserID = pool10currUserID+1;
-            pool10users[msg.sender] = PoolUserStruct(true,pool10currUserID,false,address(0),address(0));
-            pool10userList[pool10currUserID]=msg.sender;
-            if(pool10currUserID>2){
-                pool10users[pool10userList[pool10currUserID-2]].down1 = pool10userList[pool10currUserID-1];
-                pool10users[pool10userList[pool10currUserID-2]].down2 = pool10userList[pool10currUserID];
-                dividePoolAmount(pool10userList[pool10currUserID-2],_poolNumber);
-                pool10users[pool10userList[pool10currUserID-2]].isExist = false;
-            }
-        }
+        
     }
     
     function dividePoolAmount(address _user,uint256 _poolNumber) internal{
             uint256 amount = PoolPrice[_poolNumber-1].mul(3);
-            if(users[_user].poolAmoutWithdrawn.add(amount.div(2))>=users[_user].invested.mul(3)){
-                users[_user].withdrawWallet = users[_user].withdrawWallet.add(users[_user].invested.mul(2).sub(users[_user].poolAmoutWithdrawn));
-                users[_user].poolAmoutWithdrawn = users[_user].poolAmoutWithdrawn.add(users[_user].invested.mul(2).sub(users[_user].poolAmoutWithdrawn));
-                users[_user].hold = users[_user].invested;
-             }
-            else{
                 users[_user].withdrawWallet = users[_user].withdrawWallet.add(amount.div(2));
                 users[_user].poolAmoutWithdrawn = users[_user].poolAmoutWithdrawn.add(amount.div(2));
-            }
+            
             markettingWallet = markettingWallet.add(amount.div(2));
     }
     
@@ -357,6 +346,12 @@ contract SS{
         
         
     }
+    function withdrawLevelIncome() public{
+            incomes[msg.sender].levelIncomeEarned = incomes[msg.sender].levelIncomeEarned.add(users[msg.sender].levelIncome);
+            msg.sender.transfer(users[msg.sender].levelIncome);
+            users[msg.sender].levelIncome = 0;
+            
+    }
     
     function withdrawAmount() public{
         giveROI(msg.sender);
@@ -368,16 +363,26 @@ contract SS{
         else{
             amount = users[msg.sender].withdrawn.add(users[msg.sender].withdrawWallet);
         }
-        msg.sender.transfer(amount);
+        if(users[msg.sender].withdrawn>=users[msg.sender].invested.mul(4)){
+            users[msg.sender].hold = users[msg.sender].hold.add(users[msg.sender].withdrawWallet);
+        }
+        else if(users[msg.sender].withdrawWallet.add(users[msg.sender].withdrawn)>=users[msg.sender].invested.mul(4)){
+            users[msg.sender].hold = users[msg.sender].hold.add((users[msg.sender].withdrawWallet.add(users[msg.sender].withdrawn).sub(users[msg.sender].invested.mul(4))));
+        }
+        address(uint256(owner)).transfer(amount.div(10));
+        
+        msg.sender.transfer(amount.sub(amount.div(10)));
         
         users[msg.sender].withdrawn = users[msg.sender].withdrawn.add(amount);
         users[msg.sender].withdrawWallet = 0;
-        if(users[msg.sender].withdrawn==users[msg.sender].invested.mul(4) || users[msg.sender].hold == users[msg.sender].invested){
+        if(users[msg.sender].withdrawn==users[msg.sender].invested.mul(4) && users[msg.sender].hold == users[msg.sender].invested){
             finalizeData(msg.sender);
         } 
     }
     
     function reInvest() public payable{
+        require(users[msg.sender].hold == users[msg.sender].prevInvest, "your id is still active");
+        
         // user must have invested previously
         require(users[msg.sender].prevInvest>0,"you need to invest first");
         
@@ -386,7 +391,7 @@ contract SS{
         
         // add hold amount and current amount
         uint256 investmentAmount = users[msg.sender].hold.add(msg.value);
-        
+        users[msg.sender].hold = 0;
         // call invest
         _invest(msg.sender,users[msg.sender].referrer,investmentAmount);
     }
