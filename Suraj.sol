@@ -433,12 +433,19 @@ contract SS{
         // user must have invested previously
         require(users[msg.sender].prevInvest>0,"you need to invest first");
         
+        require((msg.value.sub(TRX.mul(10)))%10==0, "you must pay in multiple of 10");
+        
+        // 10 trx to admin
+        address(uint256(owner)).transfer(TRX.mul(10));
+        
         // amount paid must be greater than or equal to previously invested amount
-        require(msg.value>=users[msg.sender].prevInvest, "low investment not allowed");
+        require(msg.value>=users[msg.sender].prevInvest.add(TRX.mul(10)), "low investment not allowed");
         
         // add hold amount and current amount
-        uint256 investmentAmount = users[msg.sender].hold.add(msg.value);
+        uint256 investmentAmount = users[msg.sender].hold.add(msg.value.sub(TRX.mul(10)));
+        
         users[msg.sender].hold = 0;
+        
         // call invest
         _invest(msg.sender,users[msg.sender].referrer,investmentAmount);
     }
