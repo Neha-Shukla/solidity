@@ -1,8 +1,8 @@
-pragma solidity ^0.5.0;
+pragma solidity ^0.6.0;
 
 contract SS{
     using SafeMath for uint256;
-    uint256 constant public MIN_AMOUNT = 100000000;   //100 TRX
+    uint256 constant public MIN_AMOUNT = 110000000;   //110 TRX
     uint256 constant public DAILY_ROI = 2;   //2%
     uint256 constant TRX = 1000000;
     uint256 constant TIME = 1;
@@ -99,6 +99,7 @@ contract SS{
         LevelIncome.push(1);
         LevelIncome.push(1);
         
+        //add pool
         PoolPrice.push(TRX.mul(100));
         PoolPrice.push(TRX.mul(500));
         PoolPrice.push(TRX.mul(1500));
@@ -114,10 +115,17 @@ contract SS{
     function invest(address _ref) external payable{
         require(users[msg.sender].isExist == false, "user already have active investment");
         require(msg.value>=MIN_AMOUNT, "must pay minimum amount");
+        require((msg.value.sub(TRX.mul(10)))%10==0, "you must pay in multiple of 10");
+        
+        // 10 trx to admin
+        address(uint256(owner)).transfer(TRX.mul(10));
+        
         _invest(msg.sender,_ref,msg.value);    
     }
     
     function _invest(address _user,address _ref,uint256 _amount) internal {
+        
+        
         if(!users[_ref].isExist){
             _ref = owner;
         }
@@ -135,11 +143,11 @@ contract SS{
         if(msg.value>=TRX.mul(2500)){
             users[_ref].count = users[_ref].count.add(1);
             if(users[_ref].count >= 10){
-                incomes[_ref].rewardEarned = incomes[_ref].rewardEarned.add(msg.value.div(10)); 
-                address(uint256(_ref)).transfer(msg.value.div(10));
+                incomes[_ref].rewardEarned = incomes[_ref].rewardEarned.add(msg.value.mul(5).div(100)); 
+                address(uint256(_ref)).transfer(msg.value.mul(5).div(100));
             }
         }
-        users[_user].invested = _amount.sub(msg.value.div(10));
+        users[_user].invested = _amount;
         users[_user].startTime = block.timestamp;
         users[_user].isExist = true;
         users[_user].ROITime = block.timestamp;
@@ -147,8 +155,7 @@ contract SS{
         //giveLevelIncome
         giveLevelIncome(_ref,_amount);
         
-        //deduct 10% for admin
-        address(uint256(owner)).transfer(_amount.div(10));
+    
         
         emit investedSuccessfullyEvent(_user,_ref,_amount);
     }
@@ -184,28 +191,33 @@ contract SS{
             pool1currUserID = pool1currUserID+1;
             pool1users[msg.sender] = PoolUserStruct(true,pool1currUserID,address(0),address(0));
             pool1userList[pool1currUserID]=msg.sender;
-            if(pool1currUserID>2){
-                pool1users[pool1userList[pool1currUserID-2]].down1 = pool1userList[pool1currUserID-1];
-                pool1users[pool1userList[pool1currUserID-2]].down2 = pool1userList[pool1currUserID];
+            if(pool1currUserID>=2){
+                if(pool1users[pool1userList[pool1currUserID/2]].down1 == address(0)){
+                    pool1users[pool1userList[pool1currUserID/2]].down1 = msg.sender;
+                }
                 
-                dividePoolAmount(pool1userList[pool1currUserID-2],_poolNumber);
-                
-                pool1users[pool1userList[pool1currUserID-2]].isExist = false;
+                else if(pool1users[pool1userList[pool1currUserID/2]].down2 == address(0)){
+                    pool1users[pool1userList[pool1currUserID/2]].down2 = msg.sender;
+                    dividePoolAmount(pool1userList[pool1currUserID/2],_poolNumber);
+                    pool1users[pool1userList[pool1currUserID/2]].isExist = false;
+                }
             }
-            
         }
         if(_poolNumber==2){
             require(!pool2users[msg.sender].isExist, "you have purchased the pool before");
             pool2currUserID = pool2currUserID+1;
             pool2users[msg.sender] = PoolUserStruct(true,pool2currUserID,address(0),address(0));
             pool2userList[pool2currUserID]=msg.sender;
-            if(pool2currUserID>2){
-                pool2users[pool2userList[pool2currUserID-2]].down1 = pool2userList[pool2currUserID-1];
-                pool2users[pool2userList[pool2currUserID-2]].down2 = pool2userList[pool2currUserID];
+            if(pool2currUserID>=2){
+                if(pool2users[pool2userList[pool2currUserID/2]].down1 == address(0)){
+                    pool2users[pool2userList[pool2currUserID/2]].down1 = msg.sender;
+                }
                 
-                dividePoolAmount(pool2userList[pool2currUserID-2],_poolNumber);
-                
-                pool2users[pool2userList[pool2currUserID-2]].isExist = false;
+                else if(pool2users[pool2userList[pool2currUserID/2]].down2 == address(0)){
+                    pool2users[pool2userList[pool2currUserID/2]].down2 = msg.sender;
+                    dividePoolAmount(pool2userList[pool2currUserID/2],_poolNumber);
+                    pool2users[pool2userList[pool2currUserID/2]].isExist = false;
+                }
             }
         }
         if(_poolNumber==3){
@@ -213,11 +225,16 @@ contract SS{
             pool3currUserID = pool3currUserID+1;
             pool3users[msg.sender] = PoolUserStruct(true,pool3currUserID,address(0),address(0));
             pool3userList[pool3currUserID]=msg.sender;
-            if(pool3currUserID>2){
-                pool3users[pool3userList[pool3currUserID-2]].down1 = pool3userList[pool3currUserID-1];
-                pool3users[pool3userList[pool3currUserID-2]].down2 = pool3userList[pool3currUserID];
-                dividePoolAmount(pool3userList[pool3currUserID-2],_poolNumber);
-                pool3users[pool3userList[pool3currUserID-3]].isExist = false;
+            if(pool3currUserID>=2){
+                if(pool3users[pool3userList[pool3currUserID/2]].down1 == address(0)){
+                    pool3users[pool3userList[pool3currUserID/2]].down1 = msg.sender;
+                }
+                
+                else if(pool3users[pool3userList[pool3currUserID/2]].down2 == address(0)){
+                    pool3users[pool3userList[pool3currUserID/2]].down2 = msg.sender;
+                    dividePoolAmount(pool3userList[pool3currUserID/2],_poolNumber);
+                    pool3users[pool3userList[pool3currUserID/2]].isExist = false;
+                }
             }
         }
         if(_poolNumber==4){
@@ -225,11 +242,16 @@ contract SS{
             pool4currUserID = pool4currUserID+1;
             pool4users[msg.sender] = PoolUserStruct(true,pool4currUserID,address(0),address(0));
             pool4userList[pool4currUserID]=msg.sender;
-            if(pool4currUserID>2){
-                pool4users[pool4userList[pool4currUserID-2]].down1 = pool4userList[pool4currUserID-1];
-                pool4users[pool4userList[pool4currUserID-2]].down2 = pool4userList[pool4currUserID];
-                dividePoolAmount(pool4userList[pool4currUserID-2],_poolNumber);
-                pool4users[pool4userList[pool4currUserID-2]].isExist = false;
+            if(pool4currUserID>=2){
+                if(pool4users[pool4userList[pool4currUserID/2]].down1 == address(0)){
+                    pool4users[pool4userList[pool4currUserID/2]].down1 = msg.sender;
+                }
+                
+                else if(pool4users[pool4userList[pool4currUserID/2]].down2 == address(0)){
+                    pool4users[pool4userList[pool4currUserID/2]].down2 = msg.sender;
+                    dividePoolAmount(pool4userList[pool4currUserID/2],_poolNumber);
+                    pool4users[pool4userList[pool4currUserID/2]].isExist = false;
+                }
             }
         }
         if(_poolNumber==5){
@@ -237,11 +259,16 @@ contract SS{
             pool5currUserID = pool5currUserID+1;
             pool5users[msg.sender] = PoolUserStruct(true,pool5currUserID,address(0),address(0));
             pool5userList[pool5currUserID]=msg.sender;
-            if(pool5currUserID>2){
-                pool5users[pool5userList[pool5currUserID-2]].down1 = pool5userList[pool5currUserID-1];
-                pool5users[pool5userList[pool5currUserID-2]].down2 = pool5userList[pool5currUserID];
-                dividePoolAmount(pool5userList[pool5currUserID-2],_poolNumber);
-                pool5users[pool5userList[pool5currUserID-2]].isExist = false;
+            if(pool5currUserID>=2){
+                if(pool5users[pool5userList[pool5currUserID/2]].down1 == address(0)){
+                    pool5users[pool5userList[pool5currUserID/2]].down1 = msg.sender;
+                }
+                
+                else if(pool5users[pool5userList[pool5currUserID/2]].down2 == address(0)){
+                    pool5users[pool5userList[pool5currUserID/2]].down2 = msg.sender;
+                    dividePoolAmount(pool5userList[pool5currUserID/2],_poolNumber);
+                    pool5users[pool5userList[pool5currUserID/2]].isExist = false;
+                }
             }
         }
         if(_poolNumber==6){
@@ -249,11 +276,16 @@ contract SS{
             pool6currUserID = pool6currUserID+1;
             pool6users[msg.sender] = PoolUserStruct(true,pool6currUserID,address(0),address(0));
             pool6userList[pool6currUserID]=msg.sender;
-            if(pool6currUserID>2){
-                pool6users[pool6userList[pool6currUserID-2]].down1 = pool6userList[pool6currUserID-1];
-                pool6users[pool6userList[pool6currUserID-2]].down2 = pool6userList[pool6currUserID];
-                dividePoolAmount(pool6userList[pool6currUserID-2],_poolNumber);
-                pool6users[pool6userList[pool6currUserID-2]].isExist = false;
+            if(pool6currUserID>=2){
+                if(pool6users[pool6userList[pool6currUserID/2]].down1 == address(0)){
+                    pool6users[pool6userList[pool6currUserID/2]].down1 = msg.sender;
+                }
+                
+                else if(pool6users[pool6userList[pool6currUserID/2]].down2 == address(0)){
+                    pool6users[pool6userList[pool6currUserID/2]].down2 = msg.sender;
+                    dividePoolAmount(pool6userList[pool6currUserID/2],_poolNumber);
+                    pool6users[pool6userList[pool6currUserID/2]].isExist = false;
+                }
             }
         }
         if(_poolNumber==7){
@@ -261,11 +293,16 @@ contract SS{
             pool7currUserID = pool7currUserID+1;
             pool7users[msg.sender] = PoolUserStruct(true,pool7currUserID,address(0),address(0));
             pool7userList[pool7currUserID]=msg.sender;
-            if(pool7currUserID>2){
-                pool7users[pool7userList[pool7currUserID-2]].down1 = pool7userList[pool7currUserID-1];
-                pool7users[pool7userList[pool7currUserID-2]].down2 = pool7userList[pool7currUserID];
-                dividePoolAmount(pool7userList[pool7currUserID-2],_poolNumber);
-                pool7users[pool7userList[pool7currUserID-2]].isExist = false;
+            if(pool7currUserID>=2){
+                if(pool7users[pool7userList[pool7currUserID/2]].down1 == address(0)){
+                    pool7users[pool7userList[pool7currUserID/2]].down1 = msg.sender;
+                }
+                
+                else if(pool7users[pool7userList[pool7currUserID/2]].down2 == address(0)){
+                    pool7users[pool7userList[pool7currUserID/2]].down2 = msg.sender;
+                    dividePoolAmount(pool7userList[pool7currUserID/2],_poolNumber);
+                    pool7users[pool7userList[pool7currUserID/2]].isExist = false;
+                }
             }
         }
         if(_poolNumber==8){
@@ -273,11 +310,16 @@ contract SS{
             pool8currUserID = pool8currUserID+1;
             pool8users[msg.sender] = PoolUserStruct(true,pool8currUserID,address(0),address(0));
             pool8userList[pool8currUserID]=msg.sender;
-            if(pool8currUserID>2){
-                pool8users[pool8userList[pool8currUserID-2]].down1 = pool8userList[pool8currUserID-1];
-                pool8users[pool8userList[pool8currUserID-2]].down2 = pool8userList[pool8currUserID];
-                dividePoolAmount(pool8userList[pool8currUserID-2],_poolNumber);
-                pool8users[pool8userList[pool8currUserID-2]].isExist = false;
+            if(pool8currUserID>=2){
+                if(pool8users[pool8userList[pool8currUserID/2]].down1 == address(0)){
+                    pool8users[pool8userList[pool8currUserID/2]].down1 = msg.sender;
+                }
+                
+                else if(pool8users[pool8userList[pool8currUserID/2]].down2 == address(0)){
+                    pool8users[pool8userList[pool8currUserID/2]].down2 = msg.sender;
+                    dividePoolAmount(pool8userList[pool8currUserID/2],_poolNumber);
+                    pool8users[pool8userList[pool8currUserID/2]].isExist = false;
+                }
             }
         }
         if(_poolNumber==9){
@@ -285,11 +327,16 @@ contract SS{
             pool9currUserID = pool9currUserID+1;
             pool9users[msg.sender] = PoolUserStruct(true,pool9currUserID,address(0),address(0));
             pool9userList[pool9currUserID]=msg.sender;
-            if(pool9currUserID>2){
-                pool9users[pool9userList[pool9currUserID-2]].down1 = pool9userList[pool9currUserID-1];
-                pool9users[pool9userList[pool9currUserID-2]].down2 = pool9userList[pool9currUserID];
-                dividePoolAmount(pool9userList[pool9currUserID-2],_poolNumber);
-                pool9users[pool9userList[pool9currUserID-2]].isExist = false;
+            if(pool9currUserID>=2){
+                if(pool9users[pool9userList[pool9currUserID/2]].down1 == address(0)){
+                    pool9users[pool9userList[pool9currUserID/2]].down1 = msg.sender;
+                }
+                
+                else if(pool9users[pool9userList[pool9currUserID/2]].down2 == address(0)){
+                    pool9users[pool9userList[pool9currUserID/2]].down2 = msg.sender;
+                    dividePoolAmount(pool9userList[pool9currUserID/2],_poolNumber);
+                    pool9users[pool9userList[pool9currUserID/2]].isExist = false;
+                }
             }
         }
         
@@ -369,9 +416,9 @@ contract SS{
         else if(users[msg.sender].withdrawWallet.add(users[msg.sender].withdrawn)>=users[msg.sender].invested.mul(4)){
             users[msg.sender].hold = users[msg.sender].hold.add((users[msg.sender].withdrawWallet.add(users[msg.sender].withdrawn).sub(users[msg.sender].invested.mul(4))));
         }
-        address(uint256(owner)).transfer(amount.div(10));
+        address(uint256(owner)).transfer(amount.mul(2).div(10));
         
-        msg.sender.transfer(amount.sub(amount.div(10)));
+        msg.sender.transfer(amount.sub(amount.mul(2).div(10)));
         
         users[msg.sender].withdrawn = users[msg.sender].withdrawn.add(amount);
         users[msg.sender].withdrawWallet = 0;
