@@ -25,11 +25,12 @@ contract TronsPro{
     
     address private yieldFarmingWallet;
     address private platformMarkettingWallet;
-    address private developerWallet;
+    // address private developerWallet;
     address private insuranceFundWallet;
 
 	uint256 public yieldFarmingAmount;
 	uint256 public platformMarkettingAmount;
+	uint256 public insuranceAmount;
 	
     address owner;
     
@@ -61,7 +62,7 @@ contract TronsPro{
     }
 
     
-    uint256[] LevelIncomePercent = [10,3,1,1];
+    uint256[] LevelIncomePercent = [10,4,2,1];
     
     mapping(address => User) public users;
     mapping(uint256 => address) public usersList;
@@ -73,10 +74,10 @@ contract TronsPro{
 	event Reinvest(address indexed user, uint256 amount, uint _time); 
 	event withdrawTest(address _user,uint256 _amount,uint256 _lastWithdraw,uint256 _curr,uint256 _diff);
     event ReinvestEvent(address _user,uint256 _amount);
-  
+    event WinnersAnnouncedEvent(address first,address second,address third);
     
     constructor(address _yieldFarmingAddr, address _platformMarkettingAddr,address _developerWallet,address _insuranceFundWallet) public {
-        developerWallet = _developerWallet;
+        // developerWallet = _developerWallet;
         yieldFarmingWallet = _yieldFarmingAddr;
         platformMarkettingWallet = _platformMarkettingAddr;
         insuranceFundWallet = _insuranceFundWallet;
@@ -107,7 +108,7 @@ contract TronsPro{
         // call distributeLevelIncome
         distributeLevelIncome(_user,_amount);
         
-        //  give Launching Bonus
+        // give Launching Bonus
         if(checkEligibilityForLaunchingBonus(totalUsers,_amount)){
             address(uint256(_user)).transfer((_amount.mul(2)).div(10));
             users[_user].launchBonus = users[_user].launchBonus.add((_amount.mul(2)).div(10));
@@ -334,7 +335,7 @@ contract TronsPro{
         return amount;
     }
     
-    function getWinners() public view returns(uint256 first,uint256 second,uint256 third){
+    function getWinners() public view returns(address _first,address _second,address _third){
         return (first,second,third);
     }
     
@@ -350,6 +351,7 @@ contract TronsPro{
     
     function distributeDailyReward() public{
         // should be called in between 6 to 6:30 else reward missed
+        emit WinnersAnnouncedEvent(first,second,third);
     }
     
 }
