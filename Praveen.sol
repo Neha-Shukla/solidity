@@ -79,7 +79,7 @@ contract TronGalaxyPower{
         }
     }
     
-    function enterSystem(address _user, address _ref, uint256 _amount) public{
+    function enterSystem(address _user, address _ref, uint256 _amount) internal{
         require(users[_user].isExist == false, "user already exist");
         require(_amount == poolsPrice[0],"Must pay exact 30 dollars");
         
@@ -109,7 +109,7 @@ contract TronGalaxyPower{
         giveReferralIncome(_ref);
     }
     
-    function buyPool(address _user,uint256 _poolNumber,uint256 _amount) public{
+    function buyPool(address _user,uint256 _poolNumber,uint256 _amount) internal{
         require(checkIfNextLevelCanBeUpgraded(_user), "you can't buy next level");
         require(_amount>=poolsPrice[_poolNumber-1],"You have to pay more");
         if(_poolNumber==1)
@@ -133,6 +133,7 @@ contract TronGalaxyPower{
                     break;
                 }
                 users[_ref].referralIncome = users[_ref].referralIncome.add(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
+                payable(_ref).transfer(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
                 _ref = users[_ref].referrer;
             }
         }
@@ -163,7 +164,11 @@ contract TronGalaxyPower{
     function releaseHoldAmount(address _user) public{
         // 7th and 8th day amount
         require(msg.sender==owner, "you are not owner");
-        
+    }
+    
+    function changePrice(uint256 _price) public{
+        require(msg.sender == owner, "You are not the owner");
+        dollars = _price;
     }
 }
 
