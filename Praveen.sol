@@ -1,4 +1,4 @@
-pragma solidity >=0.8.0;
+pragma solidity >=0.6.0;
 
 contract TronGalaxyPower{
     using SafeMath for uint256;
@@ -6,7 +6,7 @@ contract TronGalaxyPower{
     uint256 constant DAYS = 1;
     
     uint256 public totalUsers;
-    uint256 public dollars = 19000000;   // 1 dollar = 19 trx
+    uint256 public dollars = 1000000;   // 1 dollar = 19 trx
     uint256[] public poolsPrice;
     uint256[] public referralIncomePercent;
     
@@ -26,6 +26,7 @@ contract TronGalaxyPower{
         uint256 totalReferrals;
         uint256 referralIncome;
         uint256 extraEarned;
+        uint256 prevHold;
     }
     
     mapping(address => User) public users;
@@ -65,21 +66,56 @@ contract TronGalaxyPower{
         referralIncomePercent.push(5);
     }
     
+    function changePoolPrice() internal{
+        poolsPrice[0]=(dollars.mul(30));
+        poolsPrice[1]=(dollars.mul(60));
+        poolsPrice[2]=(dollars.mul(90));
+        poolsPrice[3]=(dollars.mul(120));
+        poolsPrice[4]=(dollars.mul(150));
+        poolsPrice[5]=(dollars.mul(180));
+        poolsPrice[6]=(dollars.mul(210));
+        poolsPrice[7]=(dollars.mul(240));
+        poolsPrice[8]=(dollars.mul(270));
+        poolsPrice[9]=(dollars.mul(300));
+        poolsPrice[10]=(dollars.mul(330));
+        poolsPrice[11]=(dollars.mul(360));
+        poolsPrice[12]=(dollars.mul(390));
+        poolsPrice[13]=(dollars.mul(420));
+        poolsPrice[14]=(dollars.mul(450));
+        poolsPrice[15]=(dollars.mul(480));
+        poolsPrice[16]=(dollars.mul(510));
+        poolsPrice[17]=(dollars.mul(540));
+        poolsPrice[18]=(dollars.mul(570));
+        poolsPrice[19]=(dollars.mul(600));
+        
+    }
+    
     function enterSystem(address _ref) external payable{
         enterSystem(msg.sender,_ref,msg.value);
     }
     
     function buyPool() external payable{
-        require(getHoldAmount(msg.sender).add(msg.value)>=poolsPrice[users[msg.sender].currPool], "must pay correct amount");
-        
-        buyPool(msg.sender,users[msg.sender].currPool.add(1),msg.value.add(users[msg.sender].holdAmount));
-        if(users[msg.sender].holdAmount>poolsPrice[users[msg.sender].currPool]){
-            payable(msg.sender).transfer(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool]));
-            users[msg.sender].extraEarned = users[msg.sender].extraEarned.add(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool]));
+        if(users[msg.sender].currPool == 20){
+            require(getHoldAmount(msg.sender).add(msg.value)>=poolsPrice[0], "must pay correct amount");
         }
+        else{
+            require(getHoldAmount(msg.sender).add(msg.value)>=poolsPrice[users[msg.sender].currPool], "must pay correct amount");
+        }
+        users[msg.sender].holdAmount = getHoldAmount(msg.sender);
+        if(users[msg.sender].currPool==20){
+            buyPool(msg.sender,1,msg.value.add(users[msg.sender].holdAmount));
+        }
+        else
+        buyPool(msg.sender,users[msg.sender].currPool.add(1),msg.value.add(users[msg.sender].holdAmount));
+        if(users[msg.sender].holdAmount>poolsPrice[users[msg.sender].currPool-1]){
+            payable(msg.sender).transfer(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool-2]));
+            users[msg.sender].extraEarned = users[msg.sender].extraEarned.add(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool-1]));
+        }
+        users[msg.sender].holdAmount = 0;
+        users[msg.sender].prevHold =users[msg.sender].prevHold.add(getPrevHold(msg.sender));
     }
     
-    function enterSystem(address _user, address _ref, uint256 _amount) internal{
+    function enterSystem(address _user, address _ref, uint256 _amount) public{
         require(users[_user].isExist == false, "user already exist");
         require(_amount == poolsPrice[0],"Must pay exact 30 dollars");
         
@@ -109,16 +145,13 @@ contract TronGalaxyPower{
         giveReferralIncome(_ref);
     }
     
-    function buyPool(address _user,uint256 _poolNumber,uint256 _amount) internal{
+    function buyPool(address _user,uint256 _poolNumber,uint256 _amount) public{
         require(checkIfNextLevelCanBeUpgraded(_user), "you can't buy next level");
         require(_amount>=poolsPrice[_poolNumber-1],"You have to pay more");
-        if(_poolNumber==1)
-        require(users[_user].currPool == 20, "you need to buy previous pool first" );
         
         if(users[_user].currPool == 20){
             users[_user].cycles = users[_user].cycles.add(1);
         }
-        users[_user].holdAmount = getHoldAmount(_user);
         users[_user].currPool = _poolNumber;
         users[_user].currPoolStartTime = block.timestamp;
         users[_user].currPoolEndTime = block.timestamp.add(DAYS.mul(7));
@@ -133,7 +166,7 @@ contract TronGalaxyPower{
                     break;
                 }
                 users[_ref].referralIncome = users[_ref].referralIncome.add(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
-                payable(_ref).transfer(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
+                // payable(_ref).transfer(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
                 _ref = users[_ref].referrer;
             }
         }
@@ -161,14 +194,42 @@ contract TronGalaxyPower{
         return _amount;
     }
     
-    function releaseHoldAmount(address _user) public{
+    function releaseHoldAmount(address _user,uint256 _amount) public{
         // 7th and 8th day amount
+        
         require(msg.sender==owner, "you are not owner");
+        require(users[_user].prevHold>=_amount,"invalid user amount");
+        payable(_user).transfer(_amount);
+        users[_user].prevHold = users[_user].prevHold.sub(_amount);
+        
     }
     
     function changePrice(uint256 _price) public{
         require(msg.sender == owner, "You are not the owner");
         dollars = _price;
+        changePoolPrice();
+    }
+    
+    function getPrevHold(address _user) public view returns(uint256){
+        uint256 timePassed = (block.timestamp.sub(users[_user].prevPoolStartTime)).div(DAYS);
+         uint256 amount = 0;
+         uint256 pool;
+        if(users[_user].currPool != 1){
+            pool = users[_user].currPool-1;
+            amount = timePassed.mul(poolsPrice[pool-1]).div(6);
+        if(amount>=(poolsPrice[pool-1]).mul(2).div(6)){
+            amount = (poolsPrice[pool-1]).mul(2).div(6);
+        }
+        }
+        else if(users[_user].currPool == 1 && users[_user].cycles!=1){
+            pool = 20;
+            amount = timePassed.mul(poolsPrice[pool-1]).div(6);
+        if(amount>=(poolsPrice[pool-1]).mul(2).div(6)){
+            amount = (poolsPrice[pool-1]).mul(2).div(6);
+        }
+        }
+        
+        return amount;
     }
 }
 
