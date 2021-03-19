@@ -40,10 +40,6 @@ contract TronsPro{
         uint256 withdrawn;
     }
     
-    struct Winners{
-        address addr;
-        uint256 investedAmount;    
-    }
     
     struct User {
         uint256 totalInvestedAmount;
@@ -74,7 +70,6 @@ contract TronsPro{
 	event Reinvest(address indexed user, uint256 amount, uint _time); 
 	event withdrawTest(address _user,uint256 _amount,uint256 _lastWithdraw,uint256 _curr,uint256 _diff);
     event ReinvestEvent(address _user,uint256 _amount);
-    event WinnersAnnouncedEvent(address first,address second,address third);
     
     constructor(address _yieldFarmingAddr, address _platformMarkettingAddr,address _developerWallet,address _insuranceFundWallet) public {
         // developerWallet = _developerWallet;
@@ -140,7 +135,6 @@ contract TronsPro{
             
            thirdInvested = _amount;
         }
-            
     }
     
     function setReferrer(address _user,address _ref) internal{
@@ -262,9 +256,9 @@ contract TronsPro{
         // call withdraw for 100% withdrawable amount
         uint256 amount;
         amount = dailyROICalculation();
+        require(amount>=TRX.mul(100), "must have minimum 100 trx");
         address(uint256(platformMarkettingWallet)).transfer(amount.mul(2).div(10));
-        
-        emit Withdrawn(msg.sender,amount);
+         emit Withdrawn(msg.sender,amount);
         withdraw(msg.sender,amount);
         
     }
@@ -276,6 +270,7 @@ contract TronsPro{
         uint256 amount = dailyROICalculation();
         emit Withdrawn(msg.sender,amount);
         require(amount>=minDepositSize.mul(2), "must have 100 trx for this option");
+        
         withdraw(msg.sender,amount.div(2));
         reinvest(msg.sender,amount.div(2));
     }
@@ -284,14 +279,12 @@ contract TronsPro{
         // min withdrawable amount should be greater than or equal to 50
         // call reinvest for 100% withdrawable amount
         uint256 amount = dailyROICalculation();
-        
+        require(amount>=minDepositSize, "must have 50 trx for this option");
         //give reinvest reward
         users[msg.sender].reinvestRewardEarned = users[msg.sender].reinvestRewardEarned.add(amount.mul(2).div(10));
         address(uint256(msg.sender)).transfer(amount.mul(2).div(10));
         
         emit Withdrawn(msg.sender,amount);
-        
-        require(amount>=minDepositSize, "must have 50 trx for this option");
         reinvest(msg.sender,amount);
     }
     
@@ -305,6 +298,8 @@ contract TronsPro{
     function withdraw(address _user,uint256 _amount) internal{
         address(uint256(_user)).transfer(_amount);
         totalWithdrawn = totalWithdrawn.add(_amount);
+        users[msg.sender].totalWithdrawn = users[msg.sender].totalWithdrawn.add(_amount);
+       
     }
     
     function fundDistribution(uint256 _amount) internal{
@@ -334,25 +329,7 @@ contract TronsPro{
         }
         return amount;
     }
-    
-    function getWinners() public view returns(address _first,address _second,address _third){
-        return (first,second,third);
-    }
-    
-    function resetWinners() public{
-        first = address(0);
-        second = address(0);
-        third = address(0);
-        
-        firstInvested = 0;
-        secondInvested = 0;
-        thirdInvested = 0;
-    }
-    
-    function distributeDailyReward() public{
-        // should be called in between 6 to 6:30 else reward missed
-        emit WinnersAnnouncedEvent(first,second,third);
-    }
+   
     
 }
 
