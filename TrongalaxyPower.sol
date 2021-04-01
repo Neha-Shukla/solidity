@@ -1,5 +1,5 @@
 pragma solidity >=0.6.0;
-
+// pragma experimental ABIEncoderV2;
 contract TronGalaxyPower{
     using SafeMath for uint256;
     
@@ -11,6 +11,11 @@ contract TronGalaxyPower{
     uint256[] public referralIncomePercent;
     
     address owner;
+    address admin1;
+    address admin2;
+    
+    uint256 public admin1Wallet;
+    uint256 public admin2Wallet;
     
     struct User{
         uint256 id;
@@ -29,14 +34,26 @@ contract TronGalaxyPower{
         uint256 prevHold;
     }
     
+    struct History{
+        uint256 time;
+        uint256 price;
+        uint256 pool;
+        uint256 amount;
+    }
+    
+    
     mapping(address => User) public users;
     mapping(uint256 => address) public id2Address;
     mapping(address => uint256) public totalMembers;
+    mapping(address => bool) public adminRights;
+    mapping(address => uint256) public releasedAmount;
+    mapping(address => History[]) public history;
+    mapping(address => uint256) public historyLength;
     
     event NewEntry(address _user,address _ref, uint256 _trx);
     event LevelUpgraded(address _user, uint256 _level, uint256 _trx);
     
-    constructor(address _owner) public{
+    constructor(address _owner,address _admin1,address _admin2) public{
         owner = _owner;
         poolsPrice.push(dollars.mul(30));
         poolsPrice.push(dollars.mul(60));
@@ -64,7 +81,15 @@ contract TronGalaxyPower{
         referralIncomePercent.push(10);
         referralIncomePercent.push(5);
         referralIncomePercent.push(5);
+        
+        adminRights[owner] = true;
+        adminRights[_admin1] = true;
+        adminRights[_admin2] = true;
+        admin1 = _admin1;
+        admin2 = _admin2;
     }
+    
+    /* HELPER FUNCTIONS */
     
     function changePoolPrice() internal{
         poolsPrice[0]=(dollars.mul(30));
@@ -88,32 +113,6 @@ contract TronGalaxyPower{
         poolsPrice[18]=(dollars.mul(570));
         poolsPrice[19]=(dollars.mul(600));
         
-    }
-    
-    function enterSystem(address _ref) external payable{
-        enterSystem(msg.sender,_ref,msg.value);
-    }
-    
-    function buyPool() external payable{
-        if(users[msg.sender].currPool == 20){
-            require(getHoldAmount(msg.sender).add(msg.value)>=poolsPrice[0], "must pay correct amount");
-        }
-        else{
-            require(getHoldAmount(msg.sender).add(msg.value)>=poolsPrice[users[msg.sender].currPool], "must pay correct amount");
-        }
-        users[msg.sender].holdAmount = getHoldAmount(msg.sender);
-        if(users[msg.sender].currPool==20){
-            buyPool(msg.sender,1,msg.value.add(users[msg.sender].holdAmount));
-        }
-        else
-        buyPool(msg.sender,users[msg.sender].currPool.add(1),msg.value.add(users[msg.sender].holdAmount));
-        if(users[msg.sender].holdAmount>poolsPrice[users[msg.sender].currPool-1]){
-            // payable(msg.sender).transfer(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool-2]));
-            users[msg.sender].extraEarned = users[msg.sender].extraEarned.add(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool-1]));
-        }
-        users[msg.sender].holdAmount = 0;
-        users[msg.sender].prevHold =users[msg.sender].prevHold.add(getPrevHold(msg.sender));
-        giveReferralIncome(users[msg.sender].referrer,users[msg.sender].currPool);
     }
     
     function enterSystem(address _user, address _ref, uint256 _amount) internal{
@@ -140,15 +139,20 @@ contract TronGalaxyPower{
         
         users[_ref].totalReferrals = users[_ref].totalReferrals.add(1);
         
+        admin1Wallet = admin1Wallet.add(_amount.mul(14).div(100));
+        admin2Wallet = admin2Wallet.add(_amount.mul(6).div(100));
+        
         emit NewEntry(_user,_ref,poolsPrice[0]);
         emit LevelUpgraded(_user,1,poolsPrice[0]);
-        
+        history[_user].push(History(block.timestamp,dollars,1,_amount));
+        historyLength[_user] = historyLength[_user].add(1);
         giveReferralIncome(_ref,1);
     }
     
     function buyPool(address _user,uint256 _poolNumber,uint256 _amount) internal{
         require(checkIfNextLevelCanBeUpgraded(_user), "you can't buy next level");
         require(_amount>=poolsPrice[_poolNumber-1],"You have to pay more");
+        
         if(_poolNumber == 7){
             require(users[_user].totalReferrals>=1,"you must have 1 direct to buy 7th pool");
         }
@@ -168,17 +172,125 @@ contract TronGalaxyPower{
         if(users[_user].currPool == 20){
             users[_user].cycles = users[_user].cycles.add(1);
         }
+        
+        admin1Wallet = admin1Wallet.add(_amount.mul(14).div(100));
+        admin2Wallet = admin2Wallet.add(_amount.mul(6).div(100));
+        
         users[_user].currPool = _poolNumber;
         users[_user].currPoolStartTime = block.timestamp;
         users[_user].currPoolEndTime = block.timestamp.add(DAYS.mul(7));
         users[_user].prevPoolStartTime = block.timestamp;
         users[_user].prevPoolEndTime = block.timestamp.add(DAYS.mul(2));
+        history[_user].push(History(block.timestamp,dollars,_poolNumber,_amount));
+        historyLength[_user] = historyLength[_user].add(1);
     }
     
-    function jump(address _user, address _ref, uint256 _poolNumber,uint256 _amount) public{
-        require(msg.sender==owner,"Only owner is allowed");
+    function giveReferralIncome(address _ref,uint256 _poolNumber) internal{
+        users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[0]).div(1000));
+        _ref = users[_ref].referrer;
+        if(users[_ref].totalReferrals>5){
+            
+            for(uint256 i=1;i<5;i++){
+                if(_ref == address(0)){
+                    break;
+                }
+                users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
+                totalMembers[_ref] = totalMembers[_ref].add(1); 
+                // payable(_ref).transfer(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
+                _ref = users[_ref].referrer;
+            }
+        }
+    }
+    
+    function getTimePassed(address _user) internal view returns(uint256){
+        uint256 timePassed = (block.timestamp.sub(users[_user].currPoolStartTime)).div(DAYS);
+        return timePassed;
+    }
+    
+    function getPrevHold(address _user) public view returns(uint256){
+        uint256 timePassed = (block.timestamp.sub(users[_user].prevPoolStartTime)).div(DAYS);
+         uint256 amount = 0;
+         uint256 pool;
+        if(users[_user].currPool != 1){
+            pool = users[_user].currPool;
+            amount = timePassed.mul(poolsPrice[pool-1]).div(6);
+        if(amount>=(poolsPrice[pool-1]).mul(2).div(6)){
+            amount = (poolsPrice[pool-1]).mul(2).div(6);
+        }
+        }
+        else if(users[_user].currPool == 1 && users[_user].cycles!=1){
+            pool = 20;
+            amount = timePassed.mul(poolsPrice[pool-1]).div(6);
+        if(amount>=(poolsPrice[pool-1]).mul(2).div(6)){
+            amount = (poolsPrice[pool-1]).mul(2).div(6);
+        }
+        }
+        
+        return amount;
+    }
+    
+    function getPrevHoldById(uint256 _id) public view returns(uint256){
+        return users[id2Address[_id]].prevHold;
+    }
+    /* PUBLIC FUNCTIONS */
+    
+
+    function checkIfNextLevelCanBeUpgraded(address _user) public view returns(bool){
+        
+        if(block.timestamp>=users[_user].currPoolStartTime.add(DAYS.mul(7))){
+            return true;
+        }
+        return false;
+    }
+
+    function getHoldAmount(address _user) public view returns(uint256 amount){
+        if(users[_user].isExist == false){
+            return 0;
+        }
+        uint256 timePassed = (block.timestamp.sub(users[_user].currPoolStartTime)).div(DAYS);
+        uint256 _amount = timePassed.mul(poolsPrice[users[_user].currPool-1].div(6));
+        if(_amount>=(poolsPrice[users[_user].currPool-1].mul(7).div(6))){
+            _amount = (poolsPrice[users[_user].currPool-1].mul(7).div(6));
+        }
+        return _amount;
+    }
+    
+    function getContractBalance() public view returns(uint256){
+        return address(this).balance;
+    }
+
+    function getHistory(address _user,uint256 _index) public view returns(uint256 timestamp,uint256 pool,uint256 price,uint256 amount){
+        return (history[_user][_index].time,history[_user][_index].pool,history[_user][_index].price,history[_user][_index].amount);
+    }
+    
+    /* ADMIN FUNCTIONS */
+    
+    function addAdmins(address _admin) public{
+        require(adminRights[msg.sender]==true, "You don't have permissions");
+        adminRights[_admin] = true;
+    }
+    
+    function releaseHoldAmount(address _user,uint256 _amount) public{
+        // 7th and 8th day amount
+        
+        require(adminRights[msg.sender]==true, "you are not admin");
+        require(users[_user].prevHold>=_amount,"invalid user amount");
+        payable(_user).transfer(_amount);
+        users[_user].prevHold = users[_user].prevHold.sub(_amount);
+        releasedAmount[_user] = releasedAmount[_user].add(_amount);
+        
+    }
+    
+    function changePrice(uint256 _price) public{
+        require(adminRights[msg.sender] == true, "You are not the admin");
+        dollars = _price;
+        changePoolPrice();
+    }
+    
+    function jump(address _user, address _ref, uint256 _poolNumber) public payable{
+        require(adminRights[msg.sender]==true,"You are not admin");
+        require(msg.value>=poolsPrice[_poolNumber-1],"You need to pay correct amount");
         require(users[_user].isExist==false,"User already exists");
-        require(_amount == poolsPrice[_poolNumber-1],"Must pay exact 30 dollars");
     
         if(_ref == address(0) || users[_ref].isExist == false)
         {
@@ -203,91 +315,67 @@ contract TronGalaxyPower{
         users[_ref].totalReferrals = users[_ref].totalReferrals.add(1);
         
         emit NewEntry(_user,_ref,poolsPrice[_poolNumber-1]);
-        emit LevelUpgraded(_user,1,poolsPrice[_poolNumber-1]);
+        emit LevelUpgraded(_user,_poolNumber,poolsPrice[_poolNumber-1]);
         
-        giveReferralIncome(_ref,1);
-        
-    }
-    
-    function giveReferralIncome(address _ref,uint256 _poolNumber) internal{
-        users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[0]).div(1000));
-        _ref = users[_ref].referrer;
-        if(users[_ref].totalReferrals>5){
-            
-            for(uint256 i=1;i<5;i++){
-                if(_ref == address(0)){
-                    break;
-                }
-                users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
-                totalMembers[_ref] = totalMembers[_ref].add(1); 
-                // payable(_ref).transfer(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
-                _ref = users[_ref].referrer;
-            }
-        }
-    }
-    
-    function checkIfNextLevelCanBeUpgraded(address _user) public view returns(bool){
-        
-        if(block.timestamp>=users[_user].currPoolStartTime.add(DAYS.mul(7))){
-            return true;
-        }
-        return false;
-    }
-    
-    function getTimePassed(address _user) public view returns(uint256){
-        uint256 timePassed = (block.timestamp.sub(users[_user].currPoolStartTime)).div(DAYS);
-        return timePassed;
-    }
-    
-    function getHoldAmount(address _user) public view returns(uint256 amount){
-        uint256 timePassed = (block.timestamp.sub(users[_user].currPoolStartTime)).div(DAYS);
-        uint256 _amount = timePassed.mul(poolsPrice[users[_user].currPool-1].div(6));
-        if(_amount>=(poolsPrice[users[_user].currPool-1].mul(7).div(6))){
-            _amount = (poolsPrice[users[_user].currPool-1].mul(7).div(6));
-        }
-        return _amount;
-    }
-    
-    function releaseHoldAmount(address _user,uint256 _amount) public{
-        // 7th and 8th day amount
-        
-        require(msg.sender==owner, "you are not owner");
-        require(users[_user].prevHold>=_amount,"invalid user amount");
-        payable(_user).transfer(_amount);
-        users[_user].prevHold = users[_user].prevHold.sub(_amount);
+        giveReferralIncome(_ref,_poolNumber);
         
     }
     
-    function changePrice(uint256 _price) public{
-        require(msg.sender == owner, "You are not the owner");
-        dollars = _price;
-        changePoolPrice();
+    function withdrawAdminAmount() public{
+        require(msg.sender==admin1 || msg.sender==admin2,"you are not admin");
+        if(msg.sender==admin1){
+            msg.sender.transfer(admin1Wallet);
+            admin1Wallet = 0;
+        }
+        else if(msg.sender==admin2){
+            msg.sender.transfer(admin2Wallet);
+            admin2Wallet = 0;
+        }
     }
     
-    function getPrevHold(address _user) public view returns(uint256){
-        uint256 timePassed = (block.timestamp.sub(users[_user].prevPoolStartTime)).div(DAYS);
-         uint256 amount = 0;
-         uint256 pool;
-        if(users[_user].currPool != 1){
-            pool = users[_user].currPool-1;
-            amount = timePassed.mul(poolsPrice[pool-1]).div(6);
-        if(amount>=(poolsPrice[pool-1]).mul(2).div(6)){
-            amount = (poolsPrice[pool-1]).mul(2).div(6);
-        }
-        }
-        else if(users[_user].currPool == 1 && users[_user].cycles!=1){
-            pool = 20;
-            amount = timePassed.mul(poolsPrice[pool-1]).div(6);
-        if(amount>=(poolsPrice[pool-1]).mul(2).div(6)){
-            amount = (poolsPrice[pool-1]).mul(2).div(6);
-        }
-        }
-        
-        return amount;
-    }
+    
+    /* EXTERNAL SETTER FUNCTIONS */
     
     receive() external payable{
         
+    }
+    
+    function enterSystem(address _ref) external payable{
+        enterSystem(msg.sender,_ref,msg.value);
+    }
+    
+    function buyPool() external payable{
+        if(users[msg.sender].currPool == 20){
+            require(getHoldAmount(msg.sender).add(msg.value)>=poolsPrice[0], "must pay correct amount");
+        }
+        else{
+            require(getHoldAmount(msg.sender).add(msg.value)>=poolsPrice[users[msg.sender].currPool], "must pay correct amount");
+        }
+        users[msg.sender].holdAmount = getHoldAmount(msg.sender);
+         users[msg.sender].prevHold =users[msg.sender].prevHold.add(getPrevHold(msg.sender));
+        if(users[msg.sender].currPool==20){
+            buyPool(msg.sender,1,msg.value.add(users[msg.sender].holdAmount));
+        }
+        else
+        buyPool(msg.sender,users[msg.sender].currPool.add(1),msg.value.add(users[msg.sender].holdAmount));
+        if(users[msg.sender].holdAmount>poolsPrice[users[msg.sender].currPool-1]){
+            // payable(msg.sender).transfer(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool-2]));
+            users[msg.sender].extraEarned = users[msg.sender].extraEarned.add(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool-1]));
+        }
+        users[msg.sender].holdAmount = 0;
+       
+        giveReferralIncome(users[msg.sender].referrer,users[msg.sender].currPool);
+    }
+    
+    function getAdminWithdrawableAmount(address _admin) public view returns(uint256){
+        // require(msg.sender == admin1 || msg.sender==admin2, "You are not admin");
+        if(_admin == admin1){
+            return admin1Wallet;
+        }
+        else if(_admin==admin2){
+            return admin2Wallet;
+        }
+        return 0;
     }
 }
 
