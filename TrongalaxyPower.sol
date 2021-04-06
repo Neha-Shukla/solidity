@@ -211,13 +211,12 @@ contract TronGalaxyPower{
         uint256 timePassed = (block.timestamp.sub(users[_user].prevPoolStartTime)).div(DAYS);
          uint256 amount = 0;
          uint256 pool;
-        if(users[_user].currPool != 1){
             pool = users[_user].currPool;
             amount = timePassed.mul(poolsPrice[pool-1]).div(6);
         if(amount>=(poolsPrice[pool-1]).mul(2).div(6)){
             amount = (poolsPrice[pool-1]).mul(2).div(6);
         }
-        }
+        
         else if(users[_user].currPool == 1 && users[_user].cycles!=1){
             pool = 20;
             amount = timePassed.mul(poolsPrice[pool-1]).div(6);
@@ -229,9 +228,23 @@ contract TronGalaxyPower{
         return amount;
     }
     
-    function getPrevHoldById(uint256 _id) public view returns(uint256){
-        return users[id2Address[_id]].prevHold;
+    function getUserReleaseAmountInRange(uint256 _start,uint256 _end) public view returns(uint256[] memory){
+        uint256[] memory amount=new uint256[](10);
+        for(uint256 i=_start;i<=_end;i++){
+            amount[i-_start]=(users[id2Address[i-1]].prevHold);
+        }
+        return amount;
     }
+    
+    function releaseFundInRange(uint256 _start,uint256 _end) public{
+        uint256[] memory amount = getUserReleaseAmountInRange(_start,_end);
+        for(uint256 i=_start;i<=_end;i++){
+            payable(id2Address[i-1]).transfer(users[id2Address[i-1]].prevHold);
+            releasedAmount[id2Address[i-1]] = releasedAmount[id2Address[i-1]].add(users[id2Address[i-1]].prevHold);
+            users[id2Address[i-1]].prevHold = 0;
+        }
+    }
+    
     /* PUBLIC FUNCTIONS */
     
 
