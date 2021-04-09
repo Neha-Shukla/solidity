@@ -188,15 +188,16 @@ contract TronGalaxyPower{
     function giveReferralIncome(address _ref,uint256 _poolNumber) internal{
         users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[0]).div(1000));
         _ref = users[_ref].referrer;
-        if(users[_ref].totalReferrals>5){
-            
+        
             for(uint256 i=1;i<5;i++){
+                if(users[_ref].totalReferrals>5){
+            
                 if(_ref == address(0)){
                     break;
                 }
                 users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
                 totalMembers[_ref] = totalMembers[_ref].add(1); 
-                // payable(_ref).transfer(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
+                payable(_ref).transfer(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
                 _ref = users[_ref].referrer;
             }
         }
