@@ -3,7 +3,7 @@ pragma solidity >=0.6.0;
 contract TronGalaxyPower{
     using SafeMath for uint256;
     
-    uint256 constant DAYS = 1;
+    uint256 constant DAYS = 30;
     
     uint256 public totalUsers;
     uint256 public dollars = 1000000;   // 1 dollar = 19 trx
@@ -49,6 +49,7 @@ contract TronGalaxyPower{
     mapping(address => uint256) public releasedAmount;
     mapping(address => History[]) public history;
     mapping(address => uint256) public historyLength;
+    mapping(address => uint256) public cycleRefs;
     
     event NewEntry(address _user,address _ref, uint256 _trx);
     event LevelUpgraded(address _user, uint256 _level, uint256 _trx);
@@ -171,8 +172,11 @@ contract TronGalaxyPower{
         
         if(users[_user].currPool == 20){
             users[_user].cycles = users[_user].cycles.add(1);
+            cycleRefs[_user] = 0;
         }
-        
+        else{
+            cycleRefs[_user] = cycleRefs[_user].add(1);
+        }
         admin1Wallet = admin1Wallet.add(_amount.mul(14).div(100));
         admin2Wallet = admin2Wallet.add(_amount.mul(6).div(100));
         
@@ -186,21 +190,40 @@ contract TronGalaxyPower{
     }
     
     function giveReferralIncome(address _ref,uint256 _poolNumber) internal{
-        users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[0]).div(1000));
+        if(_poolNumber == 1){
+            users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[0]).div(1000));
         _ref = users[_ref].referrer;
-        
-            for(uint256 i=1;i<5;i++){
-                if(users[_ref].totalReferrals>5){
             
-                if(_ref == address(0)){
-                    break;
-                }
-                users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
-                totalMembers[_ref] = totalMembers[_ref].add(1); 
-                payable(_ref).transfer(dollars.mul(poolsPrice[0].mul(referralIncomePercent[i]).div(1000)));
-                _ref = users[_ref].referrer;
-            }
+            for(uint256 i=1;i<5;i++){
+                  if(_ref == address(0)){
+                        break;
+                    }
+                  if(cycleRefs[_ref]>5){
+                    users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
+                    payable(_ref).transfer(dollars.mul(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000)));
+                  }
+                  totalMembers[_ref] = totalMembers[_ref].add(1); 
+                 
+             _ref = users[_ref].referrer;
+            
         }
+        }
+        else{
+            for(uint256 i=0;i<5;i++){
+                  if(_ref == address(0)){
+                        break;
+                    }
+                  if(cycleRefs[_ref]>5){
+                    users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
+                    payable(_ref).transfer(dollars.mul(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000)));
+                  }
+                  totalMembers[_ref] = totalMembers[_ref].add(1); 
+                 
+             _ref = users[_ref].referrer;
+            
+        }
+        }
+        
     }
     
     function getTimePassed(address _user) internal view returns(uint256){
@@ -233,6 +256,7 @@ contract TronGalaxyPower{
         uint256[] memory amount=new uint256[](10);
         for(uint256 i=_start;i<=_end;i++){
             amount[i-_start]=(users[id2Address[i-1]].prevHold);
+            
         }
         return amount;
     }
@@ -242,6 +266,7 @@ contract TronGalaxyPower{
         for(uint256 i=_start;i<=_end;i++){
             payable(id2Address[i-1]).transfer(users[id2Address[i-1]].prevHold);
             releasedAmount[id2Address[i-1]] = releasedAmount[id2Address[i-1]].add(users[id2Address[i-1]].prevHold);
+            payable(id2Address[i-1]).transfer(users[id2Address[i-1]].prevHold);
             users[id2Address[i-1]].prevHold = 0;
         }
     }
@@ -350,7 +375,7 @@ contract TronGalaxyPower{
     
     /* EXTERNAL SETTER FUNCTIONS */
     
-    receive() external payable{
+    function sendMoneyToContract() external payable{
         
     }
     
@@ -373,7 +398,7 @@ contract TronGalaxyPower{
         else
         buyPool(msg.sender,users[msg.sender].currPool.add(1),msg.value.add(users[msg.sender].holdAmount));
         if(users[msg.sender].holdAmount>poolsPrice[users[msg.sender].currPool-1]){
-            // payable(msg.sender).transfer(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool-2]));
+            payable(msg.sender).transfer(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool-2]));
             users[msg.sender].extraEarned = users[msg.sender].extraEarned.add(users[msg.sender].holdAmount.sub(poolsPrice[users[msg.sender].currPool-1]));
         }
         users[msg.sender].holdAmount = 0;
