@@ -189,10 +189,14 @@ contract TronGalaxyPower{
         historyLength[_user] = historyLength[_user].add(1);
     }
     
-    function giveReferralIncome(address _ref,uint256 _poolNumber) internal{
+    function giveReferralIncome(address _reff,uint256 _poolNumber) internal{
+        address _ref = _reff;
         if(_poolNumber == 1){
             users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[0]).div(1000));
-        _ref = users[_ref].referrer;
+            payable(_ref).transfer(poolsPrice[_poolNumber-1].mul(referralIncomePercent[0]).div(1000));
+                 
+            _ref = users[_ref].referrer;
+            totalMembers[_ref] = totalMembers[_ref].add(1);
             
             for(uint256 i=1;i<5;i++){
                   if(_ref == address(0)){
@@ -200,7 +204,7 @@ contract TronGalaxyPower{
                     }
                   if(cycleRefs[_ref]>=5){
                     users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
-                    payable(_ref).transfer(dollars.mul(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000)));
+                    payable(_ref).transfer(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
                   }
                   
                   totalMembers[_ref] = totalMembers[_ref].add(1);
@@ -217,7 +221,7 @@ contract TronGalaxyPower{
                     }
                   if(cycleRefs[_ref]>=5){
                     users[_ref].referralIncome = users[_ref].referralIncome.add(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
-                    payable(_ref).transfer(dollars.mul(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000)));
+                    payable(_ref).transfer(poolsPrice[_poolNumber-1].mul(referralIncomePercent[i]).div(1000));
                   }
                  
              _ref = users[_ref].referrer;
