@@ -39,6 +39,7 @@ contract TronGalaxyPower{
         uint256 price;
         uint256 pool;
         uint256 amount;
+        uint256 earned;
     }
     
     
@@ -147,7 +148,7 @@ contract TronGalaxyPower{
         
         emit NewEntry(_user,_ref,poolsPrice[0]);
         emit LevelUpgraded(_user,1,poolsPrice[0]);
-        history[_user].push(History(block.timestamp,dollars,1,_amount));
+        history[_user].push(History(block.timestamp,dollars,1,_amount,0));
         historyLength[_user] = historyLength[_user].add(1);
         giveReferralIncome(_ref,1);
     }
@@ -185,7 +186,7 @@ contract TronGalaxyPower{
         users[_user].currPoolEndTime = block.timestamp.add(DAYS.mul(7));
         users[_user].prevPoolStartTime = block.timestamp;
         users[_user].prevPoolEndTime = block.timestamp.add(DAYS.mul(2));
-        history[_user].push(History(block.timestamp,dollars,_poolNumber,_amount));
+        history[_user].push(History(block.timestamp,dollars,_poolNumber,poolsPrice[_poolNumber-1], _amount.sub(poolsPrice[_poolNumber-1])));
         historyLength[_user] = historyLength[_user].add(1);
     }
     
