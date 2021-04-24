@@ -12,20 +12,10 @@ contract TronsPro{
     uint public totalReinvest;
     uint public activedeposits;
     uint public totalWithdrawn;
-    
-    address public first;
-    address public second;
-    address public third;
-    
-    uint256 public firstInvested;
-    uint256 public secondInvested;
-    uint256 public thirdInvested;
+
     
     uint private releaseTime;
-    
-    address private yieldFarmingWallet;
     address private platformMarkettingWallet;
-    // address private developerWallet;
     address private insuranceFundWallet;
 
 	uint256 public yieldFarmingAmount;
@@ -71,9 +61,7 @@ contract TronsPro{
 	event withdrawTest(address _user,uint256 _amount,uint256 _lastWithdraw,uint256 _curr,uint256 _diff);
     event ReinvestEvent(address _user,uint256 _amount);
     
-    constructor(address _yieldFarmingAddr, address _platformMarkettingAddr,address _developerWallet,address _insuranceFundWallet) public {
-        // developerWallet = _developerWallet;
-        yieldFarmingWallet = _yieldFarmingAddr;
+    constructor( address _platformMarkettingAddr,address _insuranceFundWallet) public {
         platformMarkettingWallet = _platformMarkettingAddr;
         insuranceFundWallet = _insuranceFundWallet;
 		owner = msg.sender;
@@ -112,29 +100,7 @@ contract TronsPro{
         // call fundDistribution
         fundDistribution(_amount);
         
-        // set daily users
-       if(firstInvested<_amount){
-           third = second;
-           second = first;
-           first = msg.sender;
-           
-           thirdInvested = secondInvested;
-           secondInvested = firstInvested;
-           firstInvested = _amount;
-       }
-       else if(secondInvested<_amount){
-           third = second;
-           second = msg.sender;
-           
-           thirdInvested = secondInvested;
-           secondInvested = _amount;
-       }
        
-        else if(thirdInvested<_amount){
-           third = msg.sender;
-            
-           thirdInvested = _amount;
-        }
     }
     
     function setReferrer(address _user,address _ref) internal{
@@ -161,6 +127,7 @@ contract TronsPro{
             if(i==1){
                 users[_ref].level1Count=users[_ref].level1Count.add(1);
                 users[_ref].refReward = users[_ref].refReward.add((_amount.mul(LevelIncomePercent[i-1])).div(100));
+                
             }
             if(i==2){
                 users[_ref].level2Count=users[_ref].level2Count.add(1);
@@ -177,6 +144,7 @@ contract TronsPro{
                 users[_ref].refReward = users[_ref].refReward.add((_amount.mul(LevelIncomePercent[i-1])).div(100));
             
             }
+            address(uint256(_ref)).transfer(_amount.mul(LevelIncomePercent[i-1]).div(100));
             _ref = users[_ref].referrer;
         }
     }
@@ -252,15 +220,13 @@ contract TronsPro{
         return percent;
     }
    
-    function withdrawAll() public{
+    function withdrawAll() public {
         // call withdraw for 100% withdrawable amount
         uint256 amount;
         amount = dailyROICalculation();
-        require(amount>=TRX.mul(100), "must have minimum 100 trx");
         address(uint256(platformMarkettingWallet)).transfer(amount.mul(2).div(10));
-         emit Withdrawn(msg.sender,amount);
-        withdraw(msg.sender,amount);
-        
+         emit Withdrawn(msg.sender,amount.sub(amount.mul(2).div(10)));
+        withdraw(msg.sender,amount.sub(amount.mul(2).div(10)));
     }
     
     function withdraw50Percent() public{
@@ -298,7 +264,7 @@ contract TronsPro{
     function withdraw(address _user,uint256 _amount) internal{
         address(uint256(_user)).transfer(_amount);
         totalWithdrawn = totalWithdrawn.add(_amount);
-        users[msg.sender].totalWithdrawn = users[msg.sender].totalWithdrawn.add(_amount);
+        users[_user].totalWithdrawn = users[_user].totalWithdrawn.add(_amount);
        
     }
     
@@ -309,7 +275,7 @@ contract TronsPro{
     
     function checkEligibilityForLaunchingBonus(uint256 _id,uint256 _amount) public pure returns(bool){
         // deposited amount should be >=3000 and should be withing 1000 users
-        if(_id<=1000 && _amount>=TRX.mul(3000)){
+        if(_id<=3000 && _amount>=TRX.mul(1000)){
             return true;
         }
         else
@@ -330,6 +296,10 @@ contract TronsPro{
         return amount;
     }
    
+    function addValueToContract() external payable{
+        
+    }
+    
     
 }
 
