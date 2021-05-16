@@ -1,11 +1,11 @@
 pragma solidity >=0.5.14;
 
-contract TronsPro{
+contract BNBSmartFund{
     using SafeMath for uint256;
     uint256 constant MILLION = 100000000;
-    uint256 constant minDepositSize = 50000000;  // 50 trx
+    uint256 constant minDepositSize = 0.01 ether;  // 0.01 bnb
     uint256 constant TIME = 1;   // 1 days
-    uint constant TRX = 1000000;
+    uint constant TRX = 1 ether;
     
     uint public totalUsers;
     uint public totalInvested;
@@ -93,7 +93,6 @@ contract TronsPro{
         
         // give Launching Bonus
         if(checkEligibilityForLaunchingBonus(totalUsers,_amount)){
-            address(uint256(_user)).transfer((_amount.mul(2)).div(10));
             users[_user].launchBonus = users[_user].launchBonus.add((_amount.mul(2)).div(10));
         }
         
@@ -144,7 +143,7 @@ contract TronsPro{
                 users[_ref].refReward = users[_ref].refReward.add((_amount.mul(LevelIncomePercent[i-1])).div(100));
             
             }
-            address(uint256(_ref)).transfer(_amount.mul(LevelIncomePercent[i-1]).div(100));
+            payable(_ref).transfer(_amount.mul(LevelIncomePercent[i-1]).div(100));
             _ref = users[_ref].referrer;
         }
     }
@@ -199,19 +198,17 @@ contract TronsPro{
     function getPercent() public view returns(uint256){
         uint256 contractBalance = address(this).balance;
         uint256 percent;
-        if(contractBalance>MILLION.mul(50)){
-            percent = 6;
-        }
-        else if(contractBalance>MILLION.mul(40)){
+   
+        if(contractBalance>4000 ether){
             percent = 5;
         }
-        else if(contractBalance>MILLION.mul(30)){
+        else if(contractBalance>2000 ether){
             percent = 4;
         }
-        else if(contractBalance>MILLION.mul(20)){
+        else if(contractBalance>1000 ether){
             percent = 3;
         }
-        else if(contractBalance>MILLION.mul(10)){
+        else if(contractBalance>500 ether){
             percent = 2;
         }
         else{
@@ -222,9 +219,11 @@ contract TronsPro{
    
     function withdrawAll() public {
         // call withdraw for 100% withdrawable amount
+        
         uint256 amount;
-        amount = dailyROICalculation();
-        address(uint256(platformMarkettingWallet)).transfer(amount.mul(2).div(10));
+        amount = dailyROICalculation().add(users[msg.sender].launchBonus);
+        require(amount>=minDepositSize, "must have 0.01 BNB for this option");
+        payable(platformMarkettingWallet).transfer(amount.mul(2).div(10));
          emit Withdrawn(msg.sender,amount.sub(amount.mul(2).div(10)));
         withdraw(msg.sender,amount.sub(amount.mul(2).div(10)));
     }
@@ -233,9 +232,9 @@ contract TronsPro{
         // min withdrawable amount should be greater than or equal to 100
         // call reinvest for 50% withdrawable amount
         // call withdraw for 50% withdrawable amount
-        uint256 amount = dailyROICalculation();
+        uint256 amount = dailyROICalculation().add(users[msg.sender].launchBonus);
         emit Withdrawn(msg.sender,amount);
-        require(amount>=minDepositSize.mul(2), "must have 100 trx for this option");
+        require(amount>=minDepositSize.mul(2), "must have 0.02 BNB for this option");
         
         withdraw(msg.sender,amount.div(2));
         reinvest(msg.sender,amount.div(2));
@@ -244,11 +243,11 @@ contract TronsPro{
     function reinvestAll() public{
         // min withdrawable amount should be greater than or equal to 50
         // call reinvest for 100% withdrawable amount
-        uint256 amount = dailyROICalculation();
-        require(amount>=minDepositSize, "must have 50 trx for this option");
+        uint256 amount = dailyROICalculation().add(users[msg.sender].launchBonus);
+        require(amount>=minDepositSize, "must have 0.01 BNB for this option");
         //give reinvest reward
         users[msg.sender].reinvestRewardEarned = users[msg.sender].reinvestRewardEarned.add(amount.mul(2).div(10));
-        address(uint256(msg.sender)).transfer(amount.mul(2).div(10));
+       payable(msg.sender).transfer(amount.mul(2).div(10));
         
         emit Withdrawn(msg.sender,amount);
         reinvest(msg.sender,amount);
@@ -257,25 +256,26 @@ contract TronsPro{
     function reinvest(address _user,uint256 _amount) internal{
         _invest(_user,users[_user].referrer,_amount);
         users[_user].totalReinvestedAmount = users[_user].totalReinvestedAmount.add(_amount);
+        users[_user].launchBonus = 0;
         totalReinvest = totalReinvest.add(_amount);
         emit ReinvestEvent(_user,_amount);
     }
     
     function withdraw(address _user,uint256 _amount) internal{
-        address(uint256(_user)).transfer(_amount);
+        payable(_user).transfer(_amount);
         totalWithdrawn = totalWithdrawn.add(_amount);
         users[_user].totalWithdrawn = users[_user].totalWithdrawn.add(_amount);
-       
+        users[_user].launchBonus = 0;
     }
     
     function fundDistribution(uint256 _amount) internal{
-        address(uint256(platformMarkettingWallet)).transfer(_amount.div(10));
-        address(uint256(insuranceFundWallet)).transfer(_amount.div(100));
+        payable(platformMarkettingWallet).transfer(_amount.div(10));
+        payable(insuranceFundWallet).transfer(_amount.div(100));
     }
     
     function checkEligibilityForLaunchingBonus(uint256 _id,uint256 _amount) public pure returns(bool){
         // deposited amount should be >=3000 and should be withing 1000 users
-        if(_id<=3000 && _amount>=TRX.mul(1000)){
+        if(_id<=3000 && _amount>=0.25 ether){
             return true;
         }
         else
@@ -300,6 +300,13 @@ contract TronsPro{
         
     }
     
+    function getWithdrawableAmount(address _user) public view returns (uint256){
+        
+        uint256 totalAmount = getROI(_user).add(users[_user].launchBonus);
+       
+       
+       return totalAmount;
+    }
     
 }
 
