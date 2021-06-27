@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.0;
 /*
-
 *     * * *      *   *       *      *      * *   * * * * *
 * *   *        *     * *   * *    *   *    *  *      *
 *  *  * *     *      *   *   *   * * * *   * *       *
 * *   *        *     *       *  *       *  *  *      *
 *     * * *      *   *       * *         * *   *     *
-
 */
 
 contract DecMark{
@@ -16,25 +14,33 @@ contract DecMark{
     uint256 SECURITY_DEPOSIT = 0.01 ether;
     uint256 TAX_RATE = 2;    // 2%
     uint256 JUDGE_FEE = 0.1 ether;
-    address judge;
-    uint256 savingWallet;
-    uint256 totalSellers;
-    uint256 totalBuyers;
-    uint256 totalItems;
-    
+    address public judge;
+    uint256 public savingWallet;
+    uint256 public totalSellers;
+    uint256 public totalBuyers;
+    uint256 public totalItems;
+    uint256 public taxWallet;
+    address public govAddress;
+    uint256 public judgeAmount;
     /*
     1 -> adhaar
     2 -> pancard
     3 -> voterId
     4 -> passport
     */
+    
     struct Product{
         uint256 pid;
         string name;
         uint256 price;
+        address prevOwner;
         address owner;
         bool isExist;
+        uint256 category;
         bool isPurchased;
+        uint256 timestamp;
+        bool paymentRecieved;
+        string imageUrl;
     }
     
     struct Seller{
@@ -44,6 +50,8 @@ contract DecMark{
         uint256 totalItemsSelled;
         uint256 rating;
         bool isExist;
+        uint256 amountWithdrawn;
+        uint256 stars;
     }
     
     struct Buyer{
@@ -55,9 +63,13 @@ contract DecMark{
     mapping(address=>Seller) public sellers;
     mapping(address=>Buyer) public buyers;
     mapping(uint256=>Product) public products;
+    mapping(address => uint256[]) public buyersPurchases;
+    mapping(address => uint256) public totalPurchasesCount;
+    mapping(address=>uint256) public balances;
     
     constructor(){
-        judge = msg.sender;
+        // judge = msg.sender;
+        govAddress = msg.sender;
     }
     
     modifier onlySeller{
@@ -82,9 +94,12 @@ contract DecMark{
             identityType:_identityType,
             totalItemsSelled:0,
             rating:0,
-            isExist:true
+            isExist:true,
+            amountWithdrawn:0,
+            stars:5
         });
         totalSellers = totalSellers.add(1);
+        savingWallet = savingWallet.add(msg.value);
     }
     
     function RegisterAsBuyer() public{
@@ -97,15 +112,20 @@ contract DecMark{
         totalBuyers = totalBuyers.add(1);
     }
     
-    function AddItem(string memory _name, uint256 _price) public onlySeller(){
+    function AddItem(string memory _name, uint256 _price,uint256 _category,string memory _imageUrl) public onlySeller(){
         totalItems = totalItems.add(1);
         products[totalItems] = Product({
            pid:totalItems,
            name:_name,
            price:_price,
+           prevOwner:address(0),
            owner:msg.sender,
            isExist:true,
-           isPurchased:false
+           category:_category,
+           isPurchased:false,
+           timestamp:0,
+           paymentRecieved:false,
+           imageUrl:_imageUrl
         });
     }
     
@@ -124,25 +144,56 @@ contract DecMark{
         totalItems = totalItems.sub(1);
     }
     
-    function PurchaseItem(uint256 _itemId) public onlyBuyer(){
-        
+    function PurchaseItem(uint256 _itemId) public payable onlyBuyer(){
+        require(msg.value>=products[_itemId].price, "You need to pay more amount");
+        require(products[_itemId].isExist == true && products[_itemId].isPurchased == false , "Item not exist or already purchased");
+        balances[products[_itemId].owner] = balances[products[_itemId].owner].add(products[_itemId].price);
+        products[_itemId].prevOwner = products[_itemId].owner;
+        products[_itemId].owner = msg.sender;
+        products[_itemId].timestamp = block.timestamp;
+        buyersPurchases[msg.sender].push(_itemId);
+        totalPurchasesCount[msg.sender] = totalPurchasesCount[msg.sender].add(1);
     }
     
-    function RaiseDispute() public payable onlyBuyer(){
-        
+    function RaiseDispute(uint256 _itemId) public payable onlyBuyer(){
+        require(products[_itemId].timestamp.add(1 days)>=block.timestamp, "you can't raise dispute after 24 hours");
+        require(msg.value>=JUDGE_FEE, "you need to give judge fee it will be refunded if dispute is valid");
+        judgeAmount = judgeAmount.add(msg.value);
     }
     
     function WithdrawAmountBySeller() public onlySeller(){
-        
+        // require(products[_itemId].timestamp.add(1 days) < block.timestamp, "you need to wait for atleast 24 hours to withdraw payment");
+        // require(products[_itemId].paymentRecieved == false, "you have already withdrawn payment for this item");
+        require(balances[msg.sender]>0, "insufficient balance");
+        payable(msg.sender).transfer(balances[msg.sender].sub(balances[msg.sender].mul(2).div(100)));
+      
+        sellers[msg.sender].amountWithdrawn = sellers[msg.sender].amountWithdrawn.add(balances[msg.sender]);
+        taxWallet = taxWallet.add(balances[msg.sender].mul(2).div(100));
+        balances[msg.sender] = 0;
     }
     
-    function WithdrawAmountByBuyer() public onlyBuyer(){
-        
+    // judge can decrease the sellers rating if it found dispute to be valid and give fees back 
+    // to buyer and if it becomes less than 0 then terminate seller account and they have to re register
+    function DecreaseSellerRating(address _buyer,address _seller) public onlyJudge(){
+        if(sellers[_seller].rating == 0){
+            sellers[_seller].isExist = false;
+        }
+        else{
+            sellers[_seller].rating =sellers[_seller].rating.sub(1);
+        }
+        payable(_buyer).transfer(JUDGE_FEE);
     }
     
-    function WithdrawAmountByJudge() public onlyJudge(){
-        
+    function WithdrawGovernanceAmount() public{
+        require(msg.sender == govAddress, "you are not eligible person");
+        payable(govAddress).transfer(taxWallet);
+        taxWallet = 0;
     }
+    
+    function WithdrawJudgeFee() public onlyJudge{
+        payable(judge).transfer(judgeAmount);
+        judgeAmount = 0;
+    } 
 }
 
 library SafeMath {
